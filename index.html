@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>贪食蛇</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --text: #e2e8f0;
+      --accent: #22c55e;
+      --danger: #ef4444;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at top, #1e293b, #0f172a 65%);
+      color: var(--text);
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+
+    .game-wrap {
+      width: min(92vw, 520px);
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      text-align: center;
+      font-size: 1.6rem;
+    }
+
+    .status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .tips {
+      margin: 10px 0 14px;
+      color: #cbd5e1;
+      font-size: 0.92rem;
+      text-align: center;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      background: #020617;
+      border: 2px solid rgba(148, 163, 184, 0.35);
+      border-radius: 12px;
+      image-rendering: pixelated;
+    }
+
+    button {
+      border: 0;
+      background: var(--accent);
+      color: #052e16;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:hover { filter: brightness(1.08); }
+
+    .over { color: var(--danger); }
+  </style>
+</head>
+<body>
+  <main class="game-wrap">
+    <h1>贪食蛇</h1>
+    <div class="status">
+      <span>分数：<strong id="score">0</strong></span>
+      <button id="restart" type="button">重新开始</button>
+    </div>
+    <canvas id="board" width="480" height="480" aria-label="Snake game board"></canvas>
+    <p id="message" class="tips">方向键 / WASD 控制移动，吃到食物会变长。</p>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const messageEl = document.getElementById('message');
+    const restartBtn = document.getElementById('restart');
+
+    const gridSize = 20;
+    const tileCount = canvas.width / gridSize;
+    const tickMs = 110;
+
+    let snake;
+    let direction;
+    let pendingDirection;
+    let food;
+    let score;
+    let timer;
+    let gameOver;
+
+    function randomFood() {
+      let next;
+      do {
+        next = {
+          x: Math.floor(Math.random() * tileCount),
+          y: Math.floor(Math.random() * tileCount)
+        };
+      } while (snake.some(part => part.x === next.x && part.y === next.y));
+      return next;
+    }
+
+    function resetGame() {
+      snake = [
+        { x: 10, y: 10 },
+        { x: 9, y: 10 },
+        { x: 8, y: 10 }
+      ];
+      direction = { x: 1, y: 0 };
+      pendingDirection = direction;
+      food = randomFood();
+      score = 0;
+      gameOver = false;
+      scoreEl.textContent = score;
+      messageEl.textContent = '方向键 / WASD 控制移动，吃到食物会变长。';
+      messageEl.classList.remove('over');
+      clearInterval(timer);
+      timer = setInterval(gameLoop, tickMs);
+      draw();
+    }
+
+    function setDirection(next) {
+      if (gameOver) return;
+      if (next.x === -direction.x && next.y === -direction.y) return;
+      pendingDirection = next;
+    }
+
+    function onKeydown(event) {
+      const key = event.key.toLowerCase();
+      const map = {
+        arrowup: { x: 0, y: -1 },
+        w: { x: 0, y: -1 },
+        arrowdown: { x: 0, y: 1 },
+        s: { x: 0, y: 1 },
+        arrowleft: { x: -1, y: 0 },
+        a: { x: -1, y: 0 },
+        arrowright: { x: 1, y: 0 },
+        d: { x: 1, y: 0 }
+      };
+      if (!map[key]) return;
+      event.preventDefault();
+      setDirection(map[key]);
+    }
+
+    function gameLoop() {
+      direction = pendingDirection;
+
+      const head = {
+        x: snake[0].x + direction.x,
+        y: snake[0].y + direction.y
+      };
+
+      const hitWall = head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount;
+      const hitSelf = snake.some(part => part.x === head.x && part.y === head.y);
+
+      if (hitWall || hitSelf) {
+        gameOver = true;
+        clearInterval(timer);
+        messageEl.textContent = '游戏结束！点击“重新开始”再来一局。';
+        messageEl.classList.add('over');
+        draw();
+        return;
+      }
+
+      snake.unshift(head);
+
+      if (head.x === food.x && head.y === food.y) {
+        score += 10;
+        scoreEl.textContent = score;
+        food = randomFood();
+      } else {
+        snake.pop();
+      }
+
+      draw();
+    }
+
+    function drawGrid() {
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
+      ctx.lineWidth = 1;
+      for (let i = 1; i < tileCount; i += 1) {
+        const p = i * gridSize;
+        ctx.beginPath();
+        ctx.moveTo(p, 0);
+        ctx.lineTo(p, canvas.height);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(0, p);
+        ctx.lineTo(canvas.width, p);
+        ctx.stroke();
+      }
+    }
+
+    function drawCell(x, y, color, radius = 4) {
+      const px = x * gridSize;
+      const py = y * gridSize;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.roundRect(px + 1, py + 1, gridSize - 2, gridSize - 2, radius);
+      ctx.fill();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGrid();
+
+      drawCell(food.x, food.y, '#f43f5e', 6);
+
+      snake.forEach((part, index) => {
+        const color = index === 0 ? '#4ade80' : '#22c55e';
+        drawCell(part.x, part.y, color, 5);
+      });
+
+      if (gameOver) {
+        ctx.fillStyle = 'rgba(2, 6, 23, 0.65)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#f8fafc';
+        ctx.textAlign = 'center';
+        ctx.font = '700 36px "PingFang SC", sans-serif';
+        ctx.fillText('游戏结束', canvas.width / 2, canvas.height / 2);
+      }
+    }
+
+    document.addEventListener('keydown', onKeydown);
+    restartBtn.addEventListener('click', resetGame);
+
+    resetGame();
+  </script>
+</body>
+</html>
