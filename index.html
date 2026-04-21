@@ -105,8 +105,8 @@
       <div class="overlay show" id="guideOverlay">
         <div class="panel">
           <h2>龙系玩法引导</h2>
-          <p>方向键/WASD移动，空格暂停，Shift冲刺，Q护盾，E时停。</p>
-          <p>地图会同时刷新多个果实、不同尺寸障碍和随机道具。你已有 <strong>1000 龙币</strong>。</p>
+          <p>方向键/WASD移动，空格暂停，Shift常规加速，Q冲刺突进，E吞噬领域，R雷暴吐息。</p>
+          <p>地图会同时刷新多个果实、不同尺寸障碍、随机道具和 AI 龙蛇。你已有 <strong>1000 龙币</strong>。</p>
           <div class="row"><button id="startGuide">开始狩猎</button></div>
         </div>
       </div>
@@ -159,6 +159,8 @@
         challenge: { wrap: false, obstacleLevel: 2, itemChance: 0.024, stageBoost: 0.055, goalScore: 260 },
         casual: { wrap: true, obstacleLevel: 1, itemChance: 0.018, stageBoost: 0.02 }
       },
+      aiByMode: { classic: 1, advanced: 3, endless: 4, challenge: 3, casual: 2 },
+      aiNames: ['赤鳞', '霜翼', '雷牙', '夜魇', '苍穹', '裂焰'],
       skins: {
         azure: { name: '幽青灵龙', cost: 0, a: '#67e8f9', b: '#0e7490', core: '#ccfbf1', eye: '#083344', glow: 'rgba(34,211,238,.8)' },
         inferno: { name: '焰鳞魔龙', cost: 180, a: '#fdba74', b: '#c2410c', core: '#ffedd5', eye: '#7c2d12', glow: 'rgba(249,115,22,.9)' },
@@ -233,6 +235,8 @@
       rare() { this.tone(520, .16, 'sawtooth', .07); this.tone(1200, .14, 'triangle', .06, this.ctx.currentTime + .05); },
       combo() { this.tone(820, .08, 'square', .05); },
       item() { this.tone(610, .12, 'triangle', .06); },
+      skill() { this.tone(300, .09, 'sawtooth', .07); this.tone(600, .11, 'triangle', .06, this.ctx.currentTime + .03); },
+      warning() { this.tone(180, .06, 'square', .045); },
       fail() { this.tone(130, .25, 'sawtooth', .09); this.tone(88, .34, 'triangle', .08, this.ctx.currentTime + .05); },
       ach() { this.tone(880, .12, 'triangle', .065); this.tone(1176, .15, 'triangle', .055, this.ctx.currentTime + .08); },
       schedule() {
@@ -315,6 +319,7 @@
           fruits: [],
           items: [],
           obstacles: this.makeObstacles(modeCfg.obstacleLevel),
+          bots: this.makeBots(CONFIG.aiByMode[UI.mode.value] || 2),
           score: 0,
           runCoins: 0,
           combo: 0,
@@ -328,8 +333,11 @@
           startedAt: performance.now(),
           boost: false,
           shieldSaved: false,
+          aiKills: 0,
+          deathCause: '未知',
           effects: { shield: 0, magnet: 0, double: 0, freeze: 0, dash: 0, phase: 0, frenzy: 0 },
-          skillCd: { q: 0, e: 0 }
+          skillCd: { q: 0, e: 0, r: 0 },
+          skillFx: []
         };
         this.ensureFruitPopulation(true);
         UI.stateBadge.textContent = '进行中';
@@ -369,6 +377,26 @@
           addObstacle(x, y, w, h, shape);
         }
         return obs;
+      },
+
+      makeBots(count) {
+        const bots = [];
+        for (let i = 0; i < count; i += 1) {
+          const start = { x: 16 + (i % 3), y: 4 + i * 3 };
+          bots.push({
+            id: i + 1,
+            name: CONFIG.aiNames[i % CONFIG.aiNames.length],
+            color: ['#f97316', '#60a5fa', '#a78bfa', '#34d399', '#f43f5e'][i % 5],
+            body: [start, { x: start.x - 1, y: start.y }, { x: start.x - 2, y: start.y }],
+            dir: { x: -1, y: 0 },
+            next: { x: -1, y: 0 },
+            alive: true,
+            grow: 0,
+            score: 0,
+            isElite: i === count - 1 && count >= 4
+          });
+        }
+        return bots;
       },
 
       occupied(x, y) {
@@ -433,19 +461,45 @@
       triggerSkillQ() {
         const s = this.state;
         if (performance.now() < s.skillCd.q) return;
-        s.effects.shield = performance.now() + 6500;
-        s.skillCd.q = performance.now() + 14500;
-        this.float('护盾激活', s.body[0].x, s.body[0].y, '#67e8f9');
-        Sound.item();
+        const now = performance.now();
+        s.effects.dash = now + 2400;
+        s.effects.phase = now + 1400;
+        s.skillCd.q = now + 9000;
+        s.skillFx.push({ type: 'dash', until: now + 1000, x: s.body[0].x, y: s.body[0].y });
+        this.float('冲刺突进！', s.body[0].x, s.body[0].y, '#f97316');
+        Sound.skill();
       },
 
       triggerSkillE() {
         const s = this.state;
         if (performance.now() < s.skillCd.e) return;
-        s.effects.freeze = performance.now() + 5000;
-        s.skillCd.e = performance.now() + 15000;
-        this.float('时停场', s.body[0].x, s.body[0].y, '#93c5fd');
-        Sound.item();
+        const now = performance.now();
+        s.effects.magnet = now + 7000;
+        s.effects.double = now + 4200;
+        s.skillCd.e = now + 14000;
+        s.skillFx.push({ type: 'domain', until: now + 7000, x: s.body[0].x, y: s.body[0].y });
+        this.float('吞噬领域展开', s.body[0].x, s.body[0].y, '#22d3ee');
+        Sound.skill();
+      },
+
+      triggerSkillR() {
+        const s = this.state;
+        if (performance.now() < s.skillCd.r) return;
+        const now = performance.now();
+        s.skillCd.r = now + 16000;
+        s.skillFx.push({ type: 'thunder', until: now + 1200, x: s.body[0].x, y: s.body[0].y });
+        this.float('雷暴吐息', s.body[0].x, s.body[0].y, '#c4b5fd');
+        Sound.skill();
+
+        s.bots.forEach(bot => {
+          if (!bot.alive) return;
+          const head = bot.body[0];
+          const dist = Math.abs(head.x - s.body[0].x) + Math.abs(head.y - s.body[0].y);
+          if (dist <= 5) {
+            bot.body = bot.body.slice(0, Math.max(2, bot.body.length - 2));
+            bot.score = Math.max(0, bot.score - 15);
+          }
+        });
       },
 
       tick(now) {
@@ -488,6 +542,7 @@
             this.float('休闲模式：惩罚减免', head.x, head.y, '#a5b4fc');
             return;
           }
+          s.deathCause = hitWall ? '撞墙' : hitSelf ? '撞到自己' : '撞上障碍';
           this.endRun();
           return;
         }
@@ -509,6 +564,8 @@
         }
 
         this.pickItem(head, now);
+        this.stepBots(now);
+        this.resolveBotConflicts(now);
         this.ensureFruitPopulation();
         this.maybeSpawnItem();
         s.items = s.items.filter(i => i.expireAt > now);
@@ -524,6 +581,75 @@
           if (near) return near;
         }
         return s.fruits.find(f => f.x === head.x && f.y === head.y);
+      },
+
+      bestFruitTarget(from) {
+        const s = this.state;
+        let best = null;
+        let bestScore = -Infinity;
+        s.fruits.forEach(f => {
+          const val = f.type === 'rare' ? 40 : f.type === 'coin' ? 34 : f.type === 'combo' ? 28 : f.type === 'energy' ? 24 : 16;
+          const dist = Math.abs(from.x - f.x) + Math.abs(from.y - f.y);
+          const score = val - dist * 1.6;
+          if (score > bestScore) { bestScore = score; best = f; }
+        });
+        return best;
+      },
+
+      stepBots(now) {
+        const s = this.state;
+        const modeCfg = CONFIG.modes[s.mode];
+        const dirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+
+        s.bots.forEach(bot => {
+          if (!bot.alive) return;
+          const head = bot.body[0];
+          const target = this.bestFruitTarget(head);
+          if (!target) return;
+
+          const preferred = [];
+          if (Math.abs(target.x - head.x) >= Math.abs(target.y - head.y)) {
+            preferred.push({ x: Math.sign(target.x - head.x), y: 0 }, { x: 0, y: Math.sign(target.y - head.y) });
+          } else {
+            preferred.push({ x: 0, y: Math.sign(target.y - head.y) }, { x: Math.sign(target.x - head.x), y: 0 });
+          }
+          preferred.push(...dirs);
+
+          let chosen = bot.dir;
+          for (const d of preferred) {
+            if (!d.x && !d.y) continue;
+            const nx = head.x + d.x;
+            const ny = head.y + d.y;
+            const wrapX = modeCfg.wrap ? (nx + CONFIG.grid) % CONFIG.grid : nx;
+            const wrapY = modeCfg.wrap ? (ny + CONFIG.grid) % CONFIG.grid : ny;
+            const out = !modeCfg.wrap && (wrapX < 0 || wrapX >= CONFIG.grid || wrapY < 0 || wrapY >= CONFIG.grid);
+            if (out) continue;
+            const blocked = this.state.obstacles.some(o => o.cells.some(c => c.x === wrapX && c.y === wrapY)) ||
+              this.state.body.some(p => p.x === wrapX && p.y === wrapY) ||
+              this.state.bots.some(ob => ob !== bot && ob.alive && ob.body.some(p => p.x === wrapX && p.y === wrapY));
+            if (!blocked) { chosen = d; break; }
+          }
+
+          bot.dir = chosen;
+          let next = { x: head.x + bot.dir.x, y: head.y + bot.dir.y };
+          if (modeCfg.wrap) next = { x: (next.x + CONFIG.grid) % CONFIG.grid, y: (next.y + CONFIG.grid) % CONFIG.grid };
+
+          const crash = (!modeCfg.wrap && (next.x < 0 || next.x >= CONFIG.grid || next.y < 0 || next.y >= CONFIG.grid)) ||
+            this.state.obstacles.some(o => o.cells.some(c => c.x === next.x && c.y === next.y));
+          if (crash) { bot.alive = false; return; }
+
+          bot.body.unshift(next);
+          const fruit = this.state.fruits.find(f => f.x === next.x && f.y === next.y);
+          if (fruit) {
+            const cfg = CONFIG.fruits[fruit.type];
+            bot.grow += cfg.growth;
+            bot.score += cfg.score;
+            this.state.fruits = this.state.fruits.filter(f => f !== fruit);
+            this.spawnParticles(next.x, next.y, bot.color, fruit.type === 'rare' ? 12 : 8);
+          }
+          if (bot.grow > 0) bot.grow -= 1;
+          else bot.body.pop();
+        });
       },
 
       consumeFruit(fruit, now) {
@@ -592,6 +718,57 @@
         this.spawnParticles(head.x, head.y, cfg.color, 18);
       },
 
+      resolveBotConflicts(now) {
+        const s = this.state;
+        const pHead = s.body[0];
+
+        s.bots.forEach(bot => {
+          if (!bot.alive) return;
+          const bHead = bot.body[0];
+
+          if (bHead.x === pHead.x && bHead.y === pHead.y) {
+            if (s.body.length >= bot.body.length) {
+              bot.alive = false;
+              s.aiKills += 1;
+              s.runCoins += 18;
+              this.profile.totalCoins += 18;
+              this.float(`击败 ${bot.name}`, pHead.x, pHead.y, '#fbbf24');
+              this.spawnParticles(pHead.x, pHead.y, '#fbbf24', 18);
+            } else if (s.effects.shield > now) {
+              s.effects.shield = 0;
+              s.shieldSaved = true;
+              this.float('护盾抵挡了 AI 撞击', pHead.x, pHead.y, '#67e8f9');
+            } else {
+              s.deathCause = `被 ${bot.name} 正面击败`;
+              this.endRun();
+            }
+          }
+
+          const hitsBotBody = bot.body.slice(1).some(p => p.x === pHead.x && p.y === pHead.y);
+          if (hitsBotBody) {
+            if (s.effects.phase > now || s.effects.shield > now) {
+              if (s.effects.shield > now) s.effects.shield = 0;
+              this.float('穿越/护盾化解碰撞', pHead.x, pHead.y, '#a78bfa');
+            } else {
+              s.deathCause = `撞上 ${bot.name} 躯体`;
+              this.endRun();
+            }
+          }
+        });
+
+        // AI 互撞
+        s.bots.forEach((bot, i) => {
+          if (!bot.alive) return;
+          s.bots.forEach((other, j) => {
+            if (i === j || !other.alive) return;
+            const bh = bot.body[0];
+            if (other.body.some((p, idx) => idx > 0 && p.x === bh.x && p.y === bh.y)) {
+              bot.alive = false;
+            }
+          });
+        });
+      },
+
       updateStage(modeCfg) {
         const s = this.state;
         const prev = s.stage;
@@ -601,6 +778,13 @@
         if (prev !== s.stage) {
           this.spawnParticles(s.body[0].x, s.body[0].y, '#22d3ee', 26);
           UI.message.textContent = s.stage === 2 ? '中期来临：障碍密度和收益上升。' : '后期来临：速度与风险同时拉满！';
+          if (s.stage === 3) {
+            const elite = s.bots.find(b => b.isElite && b.alive);
+            if (elite) {
+              UI.message.textContent = `⚠️ 精英龙蛇 ${elite.name} 进入暴走争夺！`;
+              Sound.warning();
+            }
+          }
         }
         s.tick = Math.max(62, CONFIG.baseTick - s.score * modeCfg.stageBoost);
       },
@@ -662,11 +846,18 @@
         this.spawnParticles(s.body[0].x, s.body[0].y, '#f43f5e', 38);
 
         const doneTasks = this.tasks.filter(t => t.done);
-        UI.resultStats.textContent = `分数 ${s.score}｜最高 ${this.profile.bestScore}｜时长 ${s.duration}s｜最高连击 ${s.maxCombo}｜龙币 +${s.runCoins}｜道具拾取 ${s.itemsPicked} 次${s.score >= this.profile.bestScore ? '｜破纪录!' : ''}`;
+        const rank = this.getRank();
+        UI.resultStats.textContent = `分数 ${s.score}｜最高 ${this.profile.bestScore}｜时长 ${s.duration}s｜最高连击 ${s.maxCombo}｜龙币 +${s.runCoins}｜击败AI ${s.aiKills}｜排名 #${rank}｜死因：${s.deathCause}${s.score >= this.profile.bestScore ? '｜破纪录!' : ''}`;
         UI.resultTasks.textContent = doneTasks.length ? `任务：${doneTasks.map(t => `${t.text}(+${t.reward})`).join('；')}` : '任务未完成，可再试一局。';
         UI.resultOverlay.classList.add('show');
         UI.stateBadge.textContent = '已结束';
         this.persist();
+      },
+
+      getRank() {
+        const scores = [this.state.score, ...this.state.bots.filter(b => b.alive).map(b => b.score)];
+        const sorted = [...scores].sort((a, b) => b - a);
+        return sorted.indexOf(this.state.score) + 1;
       },
 
       syncHud() {
@@ -686,7 +877,8 @@
         });
         const q = Math.max(0, Math.ceil((s.skillCd.q - now) / 1000));
         const e = Math.max(0, Math.ceil((s.skillCd.e - now) / 1000));
-        UI.skillCd.textContent = `${active.slice(0,2).join(' ') || '无'} | Q:${q}s E:${e}s`;
+        const r = Math.max(0, Math.ceil((s.skillCd.r - now) / 1000));
+        UI.skillCd.textContent = `${active.slice(0,2).join(' ') || '无'} | Q:${q}s E:${e}s R:${r}s #${this.getRank()}`;
       },
 
       drawBackground(now) {
@@ -713,6 +905,25 @@
         }
         CTX.fillStyle = 'rgba(148,163,184,0.06)';
         for (let y = 0; y < UI.board.height; y += 6) CTX.fillRect(0, y, UI.board.width, 1);
+
+        // 动态龙域纹路与能量雾
+        CTX.save();
+        CTX.globalAlpha = 0.12 + this.state.stage * 0.03;
+        CTX.strokeStyle = theme.grid;
+        CTX.lineWidth = 2;
+        CTX.beginPath();
+        CTX.arc(UI.board.width * 0.2, UI.board.height * 0.2, 44 + Math.sin(now / 500) * 6, 0, Math.PI * 2);
+        CTX.arc(UI.board.width * 0.8, UI.board.height * 0.76, 52 + Math.cos(now / 650) * 6, 0, Math.PI * 2);
+        CTX.stroke();
+        CTX.restore();
+
+        // 危险边缘预警
+        if (this.state.combo === 0 && this.state.stage >= 2) {
+          const alert = 0.12 + Math.sin(now / 120) * 0.06;
+          CTX.strokeStyle = `rgba(248,113,113,${Math.max(0.05, alert)})`;
+          CTX.lineWidth = 8;
+          CTX.strokeRect(0, 0, UI.board.width, UI.board.height);
+        }
       },
 
       drawObstacles() {
@@ -876,6 +1087,65 @@
         CTX.restore();
       },
 
+      drawBots(now) {
+        this.state.bots.forEach(bot => {
+          if (!bot.alive) return;
+          const points = bot.body.map((p, i) => ({
+            x: p.x * CONFIG.cell + CONFIG.cell / 2 + Math.sin(now / 220 + i * 0.4) * 0.8,
+            y: p.y * CONFIG.cell + CONFIG.cell / 2 + Math.cos(now / 210 + i * 0.4) * 0.8
+          }));
+          points.forEach((p, i) => {
+            const r = 8 - (i / Math.max(1, points.length - 1)) * 4.6;
+            CTX.fillStyle = bot.color;
+            CTX.globalAlpha = 0.88 - i * 0.03;
+            CTX.beginPath(); CTX.arc(p.x, p.y, Math.max(2, r), 0, Math.PI * 2); CTX.fill();
+          });
+          CTX.globalAlpha = 1;
+          CTX.fillStyle = '#e2e8f0';
+          CTX.font = bot.isElite ? '700 12px sans-serif' : '600 10px sans-serif';
+          CTX.textAlign = 'center';
+          CTX.fillText(`${bot.isElite ? '👑' : ''}${bot.name}`, points[0].x, points[0].y - 12);
+        });
+      },
+
+      drawSkillFx(now) {
+        const s = this.state;
+        s.skillFx = s.skillFx.filter(fx => fx.until > now);
+        s.skillFx.forEach(fx => {
+          const head = s.body[0];
+          const hx = head.x * CONFIG.cell + CONFIG.cell / 2;
+          const hy = head.y * CONFIG.cell + CONFIG.cell / 2;
+          if (fx.type === 'dash') {
+            CTX.strokeStyle = 'rgba(249,115,22,0.5)';
+            CTX.lineWidth = 2;
+            CTX.beginPath();
+            CTX.arc(hx, hy, 24 + Math.sin(now / 40) * 5, 0, Math.PI * 2);
+            CTX.stroke();
+          } else if (fx.type === 'domain') {
+            CTX.strokeStyle = 'rgba(34,211,238,0.45)';
+            CTX.lineWidth = 3;
+            CTX.beginPath();
+            CTX.arc(hx, hy, 70 + Math.sin(now / 80) * 6, 0, Math.PI * 2);
+            CTX.stroke();
+          } else if (fx.type === 'thunder') {
+            CTX.strokeStyle = 'rgba(196,181,253,0.75)';
+            CTX.lineWidth = 2;
+            this.state.bots.filter(b => b.alive).forEach(bot => {
+              const bx = bot.body[0].x * CONFIG.cell + CONFIG.cell / 2;
+              const by = bot.body[0].y * CONFIG.cell + CONFIG.cell / 2;
+              const dist = Math.abs(bot.body[0].x - head.x) + Math.abs(bot.body[0].y - head.y);
+              if (dist <= 5) {
+                CTX.beginPath();
+                CTX.moveTo(hx, hy);
+                CTX.lineTo((hx + bx) / 2 + Math.sin(now / 40) * 6, (hy + by) / 2 + Math.cos(now / 50) * 6);
+                CTX.lineTo(bx, by);
+                CTX.stroke();
+              }
+            });
+          }
+        });
+      },
+
       drawParticlesAndFloats() {
         this.particles = this.particles.filter(p => p.life > 0);
         this.particles.forEach(p => {
@@ -913,7 +1183,9 @@
         this.drawObstacles();
         this.drawFruits(now);
         this.drawItems(now);
+        this.drawBots(now);
         this.drawDragon(now);
+        this.drawSkillFx(now);
         this.drawParticlesAndFloats();
         this.drawPauseOverlay();
       },
@@ -948,6 +1220,7 @@
           if (k === 'shift') { this.state.boost = true; return; }
           if (k === 'q') { this.triggerSkillQ(); return; }
           if (k === 'e') { this.triggerSkillE(); return; }
+          if (k === 'r') { this.triggerSkillR(); return; }
           if (!map[k]) return;
           e.preventDefault();
           this.setDir(map[k]);
