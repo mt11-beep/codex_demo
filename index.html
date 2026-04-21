@@ -78,6 +78,42 @@
       margin-bottom: 12px;
     }
 
+    }
+
+    .badge {
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      color: #bbf7d0;
+      background: rgba(34, 197, 94, 0.12);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .hud {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-bottom: 12px;
+    }
+
+    .card {
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 12px;
+      padding: 8px 10px;
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    }
+
+    .hud {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-bottom: 12px;
+    }
+
     .card {
       border: 1px solid rgba(148, 163, 184, 0.25);
       border-radius: 12px;
@@ -188,6 +224,34 @@
       visibility: hidden;
     }
 
+      font-weight: 700;
+    }
+
+    .paused {
+      color: var(--warning);
+      font-weight: 700;
+    }
+
+    .mobile-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 58px);
+      justify-content: center;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .mobile-pad button {
+      padding: 10px;
+      border-radius: 12px;
+      background: rgba(30, 41, 59, 0.95);
+      color: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .mobile-pad .blank {
+      visibility: hidden;
+    }
+
     @media (max-width: 500px) {
       .hud {
         grid-template-columns: 1fr;
@@ -222,6 +286,7 @@
 
     <canvas id="board" width="540" height="540" aria-label="Snake game board"></canvas>
     <p id="message" class="tips">方向键 / WASD 控制，空格可暂停。注意躲开蓝色水晶障碍物！</p>
+    <p id="message" class="tips">方向键 / WASD 控制，空格可暂停，手机也支持方向按钮。</p>
 
     <div class="mobile-pad" aria-label="移动控制">
       <button type="button" class="blank" tabindex="-1">·</button>
@@ -330,6 +395,7 @@
       particles = [];
       scoreEl.textContent = score;
       updateState('方向键 / WASD 控制，空格可暂停。注意躲开蓝色水晶障碍物！', '进行中');
+      updateState('方向键 / WASD 控制，空格可暂停，手机也支持方向按钮。', '进行中');
       startLoop();
       draw();
     }
@@ -410,6 +476,7 @@
         gameOver = true;
         clearInterval(timer);
         updateState('撞到墙体/障碍物了！点击“重新开始”再来一局。', '已结束', 'over');
+        updateState('游戏结束！点击“重新开始”再来一局。', '已结束', 'over');
         draw();
         return;
       }
@@ -527,6 +594,90 @@
         const py = part.y * gridSize;
         const ratio = index / Math.max(1, snake.length - 1);
         const bodyGrad = ctx.createLinearGradient(px, py, px + gridSize, py + gridSize);
+        bodyGrad.addColorStop(0, index === 0 ? '#86efac' : `hsl(${152 - ratio * 26} 72% 58%)`);
+        bodyGrad.addColorStop(1, index === 0 ? '#22c55e' : `hsl(${145 - ratio * 18} 68% 42%)`);
+
+        ctx.save();
+        ctx.shadowColor = index === 0 ? 'rgba(110, 231, 183, 0.75)' : 'rgba(34, 197, 94, 0.45)';
+        ctx.shadowBlur = index === 0 ? 14 : 7;
+        ctx.fillStyle = bodyGrad;
+        ctx.beginPath();
+        ctx.roundRect(px + 1.2, py + 1.2, gridSize - 2.4, gridSize - 2.4, index === 0 ? 8 : 6);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        const shine = ctx.createLinearGradient(px + 2, py + 2, px + 2, py + gridSize - 4);
+        shine.addColorStop(0, 'rgba(255,255,255,0.35)');
+        shine.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = shine;
+        ctx.beginPath();
+        ctx.roundRect(px + 4, py + 3, gridSize - 10, gridSize * 0.34, 3);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      const head = snake[0];
+      const centerX = head.x * gridSize + gridSize / 2;
+      const centerY = head.y * gridSize + gridSize / 2;
+      const eyeOffsetX = direction.x * 3 + (direction.y !== 0 ? 3.5 : 0);
+      const eyeOffsetY = direction.y * 3 + (direction.x !== 0 ? 3.5 : 0);
+
+      ctx.fillStyle = '#052e16';
+      ctx.beginPath();
+      ctx.arc(centerX - eyeOffsetX * 0.45, centerY - eyeOffsetY * 0.45, 2.1, 0, Math.PI * 2);
+      ctx.arc(centerX + eyeOffsetY * 0.45, centerY - eyeOffsetX * 0.45, 2.1, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.beginPath();
+      ctx.arc(centerX - eyeOffsetX * 0.45 - 0.6, centerY - eyeOffsetY * 0.45 - 0.6, 0.7, 0, Math.PI * 2);
+      ctx.arc(centerX + eyeOffsetY * 0.45 - 0.6, centerY - eyeOffsetX * 0.45 - 0.6, 0.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawParticles() {
+      particles = particles.filter(p => p.life > 0);
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.97;
+        p.vy *= 0.97;
+        p.life -= 1;
+        const alpha = Math.max(0, p.life / 34);
+        ctx.fillStyle = `rgba(250, 204, 21, ${alpha.toFixed(2)})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function draw() {
+      frameCount += 1;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGrid();
+      if (frameCount % 8 === 0 && !paused && !gameOver) {
+        const tail = snake[snake.length - 1];
+        particles.push({
+          x: tail.x * gridSize + gridSize / 2 + (Math.random() - 0.5) * 4,
+          y: tail.y * gridSize + gridSize / 2 + (Math.random() - 0.5) * 4,
+          vx: (Math.random() - 0.5) * 0.6,
+          vy: (Math.random() - 0.5) * 0.6,
+          life: 12 + Math.floor(Math.random() * 8)
+        });
+      }
+
+      drawFood();
+      drawSnake();
+      drawParticles();
+      const pulse = 0.6 + Math.sin(Date.now() / 120) * 0.4;
+      drawCell(food.x, food.y, `rgba(244, 63, 94, ${pulse.toFixed(2)})`, 6);
+
+    function drawSnake() {
+      snake.forEach((part, index) => {
+        const px = part.x * gridSize;
+        const py = part.y * gridSize;
+        const ratio = index / Math.max(1, snake.length - 1);
+        const bodyGrad = ctx.createLinearGradient(px, py, px + gridSize, py + gridSize);
         bodyGrad.addColorStop(0, index === 0 ? '#a7f3d0' : `hsl(${153 - ratio * 40} 70% 58%)`);
         bodyGrad.addColorStop(1, index === 0 ? '#10b981' : `hsl(${141 - ratio * 25} 72% 36%)`);
 
@@ -616,6 +767,9 @@
         ctx.beginPath();
         ctx.arc(p.x, p.y, 1.8, 0, Math.PI * 2);
         ctx.fill();
+        const alpha = Math.max(0.45, 1 - index * 0.03);
+        const color = index === 0 ? `rgba(74, 222, 128, ${alpha})` : `rgba(34, 197, 94, ${alpha})`;
+        drawCell(part.x, part.y, color, 5);
       });
     }
 
