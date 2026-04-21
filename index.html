@@ -3,58 +3,142 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>贪食蛇</title>
+  <title>霓虹贪食蛇</title>
   <style>
     :root {
       color-scheme: dark;
-      --bg: #0f172a;
-      --panel: #1e293b;
+      --bg-a: #020617;
+      --bg-b: #0f172a;
+      --panel: rgba(15, 23, 42, 0.82);
       --text: #e2e8f0;
+      --muted: #94a3b8;
       --accent: #22c55e;
-      --danger: #ef4444;
+      --accent-2: #0ea5e9;
+      --danger: #f43f5e;
+      --warning: #f59e0b;
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
       min-height: 100vh;
       display: grid;
       place-items: center;
-      background: radial-gradient(circle at top, #1e293b, #0f172a 65%);
+      padding: 20px;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(14, 165, 233, 0.18), transparent 36%),
+        radial-gradient(circle at 80% 90%, rgba(34, 197, 94, 0.15), transparent 34%),
+        linear-gradient(145deg, var(--bg-b), var(--bg-a));
       color: var(--text);
       font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
     }
 
     .game-wrap {
-      width: min(92vw, 520px);
-      background: rgba(15, 23, 42, 0.88);
+      width: min(95vw, 640px);
+      background: var(--panel);
       border: 1px solid rgba(148, 163, 184, 0.35);
-      border-radius: 16px;
+      border-radius: 18px;
       padding: 18px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(6px);
     }
 
-    h1 {
-      margin: 0 0 12px;
-      text-align: center;
-      font-size: 1.6rem;
-    }
-
-    .status {
+    .title-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 10px;
-      margin-bottom: 12px;
-      font-weight: 600;
+      gap: 12px;
+      margin-bottom: 10px;
     }
 
-    .tips {
-      margin: 10px 0 14px;
+    h1 {
+      margin: 0;
+      font-size: clamp(1.3rem, 4vw, 1.7rem);
+      letter-spacing: 0.02em;
+    }
+
+    .badge {
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      color: #bbf7d0;
+      background: rgba(34, 197, 94, 0.12);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .hud {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-bottom: 12px;
+    }
+
+    .card {
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 12px;
+      padding: 8px 10px;
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    .card .label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+
+    .card .value {
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .controls label {
+      font-size: 0.9rem;
       color: #cbd5e1;
-      font-size: 0.92rem;
-      text-align: center;
+    }
+
+    .controls select,
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-weight: 700;
+    }
+
+    .controls select {
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--text);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    button {
+      background: linear-gradient(135deg, var(--accent), #4ade80);
+      color: #052e16;
+      cursor: pointer;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+
+    button.secondary {
+      background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+      color: #082f49;
+    }
+
+    button:hover {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
     }
 
     canvas {
@@ -66,42 +150,109 @@
       image-rendering: pixelated;
     }
 
-    button {
-      border: 0;
-      background: var(--accent);
-      color: #052e16;
-      font-weight: 700;
-      padding: 8px 14px;
-      border-radius: 8px;
-      cursor: pointer;
+    .tips {
+      margin: 10px 0 0;
+      color: #cbd5e1;
+      font-size: 0.9rem;
+      text-align: center;
+      min-height: 1.35em;
     }
 
-    button:hover { filter: brightness(1.08); }
+    .over {
+      color: var(--danger);
+      font-weight: 700;
+    }
 
-    .over { color: var(--danger); }
+    .paused {
+      color: var(--warning);
+      font-weight: 700;
+    }
+
+    .mobile-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 58px);
+      justify-content: center;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .mobile-pad button {
+      padding: 10px;
+      border-radius: 12px;
+      background: rgba(30, 41, 59, 0.95);
+      color: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .mobile-pad .blank {
+      visibility: hidden;
+    }
+
+    @media (max-width: 500px) {
+      .hud {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
   <main class="game-wrap">
-    <h1>贪食蛇</h1>
-    <div class="status">
-      <span>分数：<strong id="score">0</strong></span>
-      <button id="restart" type="button">重新开始</button>
+    <div class="title-row">
+      <h1>霓虹贪食蛇</h1>
+      <span class="badge" id="stateBadge">进行中</span>
     </div>
-    <canvas id="board" width="480" height="480" aria-label="Snake game board"></canvas>
-    <p id="message" class="tips">方向键 / WASD 控制移动，吃到食物会变长。</p>
+
+    <div class="hud">
+      <div class="card"><span class="label">当前分数</span><span class="value" id="score">0</span></div>
+      <div class="card"><span class="label">历史最高</span><span class="value" id="best">0</span></div>
+      <div class="card"><span class="label">速度等级</span><span class="value" id="speedLabel">普通</span></div>
+    </div>
+
+    <div class="controls">
+      <button id="restart" type="button">重新开始</button>
+      <button id="pause" class="secondary" type="button">暂停 / 继续</button>
+      <label for="speed">速度：</label>
+      <select id="speed" aria-label="Speed Level">
+        <option value="130">慢速</option>
+        <option value="100" selected>普通</option>
+        <option value="78">快速</option>
+        <option value="58">疯狂</option>
+      </select>
+    </div>
+
+    <canvas id="board" width="540" height="540" aria-label="Snake game board"></canvas>
+    <p id="message" class="tips">方向键 / WASD 控制，空格可暂停，手机也支持方向按钮。</p>
+
+    <div class="mobile-pad" aria-label="移动控制">
+      <button type="button" class="blank" tabindex="-1">·</button>
+      <button type="button" data-dir="up">↑</button>
+      <button type="button" class="blank" tabindex="-1">·</button>
+      <button type="button" data-dir="left">←</button>
+      <button type="button" data-dir="down">↓</button>
+      <button type="button" data-dir="right">→</button>
+    </div>
   </main>
 
   <script>
     const canvas = document.getElementById('board');
     const ctx = canvas.getContext('2d');
     const scoreEl = document.getElementById('score');
+    const bestEl = document.getElementById('best');
     const messageEl = document.getElementById('message');
+    const speedLabelEl = document.getElementById('speedLabel');
     const restartBtn = document.getElementById('restart');
+    const pauseBtn = document.getElementById('pause');
+    const speedSelect = document.getElementById('speed');
+    const stateBadge = document.getElementById('stateBadge');
 
     const gridSize = 20;
     const tileCount = canvas.width / gridSize;
-    const tickMs = 110;
+    const speedMap = {
+      130: '慢速',
+      100: '普通',
+      78: '快速',
+      58: '疯狂'
+    };
 
     let snake;
     let direction;
@@ -110,6 +261,12 @@
     let score;
     let timer;
     let gameOver;
+    let paused;
+    let tickMs = Number(speedSelect.value);
+    let bestScore = Number(localStorage.getItem('neon-snake-best') || 0);
+
+    bestEl.textContent = bestScore;
+    speedLabelEl.textContent = speedMap[tickMs];
 
     function randomFood() {
       let next;
@@ -122,33 +279,66 @@
       return next;
     }
 
+    function updateState(statusText, badgeText, badgeClass = '') {
+      messageEl.textContent = statusText;
+      messageEl.classList.remove('over', 'paused');
+      if (badgeClass) {
+        messageEl.classList.add(badgeClass);
+      }
+      stateBadge.textContent = badgeText;
+    }
+
+    function startLoop() {
+      clearInterval(timer);
+      timer = setInterval(gameLoop, tickMs);
+    }
+
     function resetGame() {
       snake = [
-        { x: 10, y: 10 },
-        { x: 9, y: 10 },
-        { x: 8, y: 10 }
+        { x: 13, y: 13 },
+        { x: 12, y: 13 },
+        { x: 11, y: 13 }
       ];
       direction = { x: 1, y: 0 };
       pendingDirection = direction;
       food = randomFood();
       score = 0;
+      paused = false;
       gameOver = false;
       scoreEl.textContent = score;
-      messageEl.textContent = '方向键 / WASD 控制移动，吃到食物会变长。';
-      messageEl.classList.remove('over');
-      clearInterval(timer);
-      timer = setInterval(gameLoop, tickMs);
+      updateState('方向键 / WASD 控制，空格可暂停，手机也支持方向按钮。', '进行中');
+      startLoop();
       draw();
     }
 
     function setDirection(next) {
-      if (gameOver) return;
+      if (gameOver || paused) return;
       if (next.x === -direction.x && next.y === -direction.y) return;
       pendingDirection = next;
     }
 
+    function togglePause() {
+      if (gameOver) return;
+      paused = !paused;
+      if (paused) {
+        clearInterval(timer);
+        updateState('已暂停，按空格或点击“暂停 / 继续”恢复。', '已暂停', 'paused');
+      } else {
+        updateState('继续游戏，加油冲击高分！', '进行中');
+        startLoop();
+      }
+      draw();
+    }
+
     function onKeydown(event) {
       const key = event.key.toLowerCase();
+
+      if (key === ' ') {
+        event.preventDefault();
+        togglePause();
+        return;
+      }
+
       const map = {
         arrowup: { x: 0, y: -1 },
         w: { x: 0, y: -1 },
@@ -159,6 +349,7 @@
         arrowright: { x: 1, y: 0 },
         d: { x: 1, y: 0 }
       };
+
       if (!map[key]) return;
       event.preventDefault();
       setDirection(map[key]);
@@ -178,8 +369,7 @@
       if (hitWall || hitSelf) {
         gameOver = true;
         clearInterval(timer);
-        messageEl.textContent = '游戏结束！点击“重新开始”再来一局。';
-        messageEl.classList.add('over');
+        updateState('游戏结束！点击“重新开始”再来一局。', '已结束', 'over');
         draw();
         return;
       }
@@ -189,6 +379,13 @@
       if (head.x === food.x && head.y === food.y) {
         score += 10;
         scoreEl.textContent = score;
+
+        if (score > bestScore) {
+          bestScore = score;
+          localStorage.setItem('neon-snake-best', String(bestScore));
+          bestEl.textContent = bestScore;
+        }
+
         food = randomFood();
       } else {
         snake.pop();
@@ -198,7 +395,7 @@
     }
 
     function drawGrid() {
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.1)';
       ctx.lineWidth = 1;
       for (let i = 1; i < tileCount; i += 1) {
         const p = i * gridSize;
@@ -214,7 +411,7 @@
       }
     }
 
-    function drawCell(x, y, color, radius = 4) {
+    function drawCell(x, y, color, radius = 5) {
       const px = x * gridSize;
       const py = y * gridSize;
       ctx.fillStyle = color;
@@ -227,25 +424,49 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawGrid();
 
-      drawCell(food.x, food.y, '#f43f5e', 6);
+      const pulse = 0.6 + Math.sin(Date.now() / 120) * 0.4;
+      drawCell(food.x, food.y, `rgba(244, 63, 94, ${pulse.toFixed(2)})`, 6);
 
       snake.forEach((part, index) => {
-        const color = index === 0 ? '#4ade80' : '#22c55e';
+        const alpha = Math.max(0.45, 1 - index * 0.03);
+        const color = index === 0 ? `rgba(74, 222, 128, ${alpha})` : `rgba(34, 197, 94, ${alpha})`;
         drawCell(part.x, part.y, color, 5);
       });
 
-      if (gameOver) {
-        ctx.fillStyle = 'rgba(2, 6, 23, 0.65)';
+      if (paused || gameOver) {
+        ctx.fillStyle = 'rgba(2, 6, 23, 0.58)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#f8fafc';
         ctx.textAlign = 'center';
-        ctx.font = '700 36px "PingFang SC", sans-serif';
-        ctx.fillText('游戏结束', canvas.width / 2, canvas.height / 2);
+        ctx.font = '700 34px "PingFang SC", sans-serif';
+        ctx.fillText(paused ? '已暂停' : '游戏结束', canvas.width / 2, canvas.height / 2);
       }
     }
 
     document.addEventListener('keydown', onKeydown);
+
     restartBtn.addEventListener('click', resetGame);
+    pauseBtn.addEventListener('click', togglePause);
+
+    speedSelect.addEventListener('change', () => {
+      tickMs = Number(speedSelect.value);
+      speedLabelEl.textContent = speedMap[tickMs];
+      if (!gameOver && !paused) {
+        startLoop();
+      }
+    });
+
+    document.querySelectorAll('[data-dir]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const map = {
+          up: { x: 0, y: -1 },
+          down: { x: 0, y: 1 },
+          left: { x: -1, y: 0 },
+          right: { x: 1, y: 0 }
+        };
+        setDirection(map[btn.dataset.dir]);
+      });
+    });
 
     resetGame();
   </script>
