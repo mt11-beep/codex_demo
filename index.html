@@ -74,7 +74,7 @@
     .hud {
       display: grid;
       gap: 8px;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       margin-bottom: 12px;
     }
 
@@ -206,12 +206,16 @@
       <div class="card"><span class="label">当前分数</span><span class="value" id="score">0</span></div>
       <div class="card"><span class="label">历史最高</span><span class="value" id="best">0</span></div>
       <div class="card"><span class="label">速度等级</span><span class="value" id="speedLabel">普通</span></div>
+      <div class="card"><span class="label">龙币</span><span class="value" id="coins">0</span></div>
     </div>
 
     <div class="controls">
       <button id="restart" type="button">重新开始</button>
       <button id="pause" class="secondary" type="button">暂停 / 继续</button>
       <button id="music" class="secondary" type="button">音乐：开启</button>
+      <label for="skinSelect">皮肤：</label>
+      <select id="skinSelect" aria-label="Skin Selector"></select>
+      <button id="buySkin" class="secondary" type="button">购买/装备</button>
       <label for="speed">速度：</label>
       <select id="speed" aria-label="Speed Level">
         <option value="130">慢速</option>
@@ -239,11 +243,14 @@
     const ctx = canvas.getContext('2d');
     const scoreEl = document.getElementById('score');
     const bestEl = document.getElementById('best');
+    const coinsEl = document.getElementById('coins');
     const messageEl = document.getElementById('message');
     const speedLabelEl = document.getElementById('speedLabel');
     const restartBtn = document.getElementById('restart');
     const pauseBtn = document.getElementById('pause');
     const musicBtn = document.getElementById('music');
+    const skinSelect = document.getElementById('skinSelect');
+    const buySkinBtn = document.getElementById('buySkin');
     const speedSelect = document.getElementById('speed');
     const stateBadge = document.getElementById('stateBadge');
 
@@ -276,10 +283,51 @@
     let noteIndex = 0;
     let musicTimer = null;
     const melody = [220, 247, 262, 294, 330, 294, 262, 247];
+    const skinConfigs = {
+      golden: { name: '鎏金神龙', cost: 0, bodyA: '#fde68a', bodyB: '#ca8a04', spike: '#fff7c2', eye: '#78350f' },
+      jade: { name: '青玉灵龙', cost: 80, bodyA: '#99f6e4', bodyB: '#0d9488', spike: '#ccfbf1', eye: '#134e4a' },
+      inferno: { name: '焰鳞魔龙', cost: 160, bodyA: '#fdba74', bodyB: '#c2410c', spike: '#ffedd5', eye: '#7c2d12' },
+      cosmic: { name: '星穹天龙', cost: 240, bodyA: '#c4b5fd', bodyB: '#6d28d9', spike: '#ede9fe', eye: '#2e1065' }
+    };
+    let coins = Number(localStorage.getItem('dragon-coins') || 0);
+    let unlockedSkins = JSON.parse(localStorage.getItem('dragon-unlocked-skins') || 'null') || ['golden'];
+    let currentSkin = localStorage.getItem('dragon-current-skin') || 'golden';
 
     bestEl.textContent = bestScore;
     speedLabelEl.textContent = speedMap[tickMs];
     musicBtn.textContent = '音乐：开启';
+    coinsEl.textContent = coins;
+
+    function persistProfile() {
+      localStorage.setItem('dragon-coins', String(coins));
+      localStorage.setItem('dragon-unlocked-skins', JSON.stringify(unlockedSkins));
+      localStorage.setItem('dragon-current-skin', currentSkin);
+    }
+
+    function refreshSkinUI() {
+      const key = skinSelect.value;
+      const skin = skinConfigs[key];
+      const unlocked = unlockedSkins.includes(key);
+      if (unlocked) {
+        buySkinBtn.textContent = `装备：${skin.name}`;
+      } else {
+        buySkinBtn.textContent = `购买 ${skin.name}（${skin.cost} 龙币）`;
+      }
+    }
+
+    function buildSkinOptions() {
+      skinSelect.innerHTML = '';
+      Object.entries(skinConfigs).forEach(([key, skin]) => {
+        const unlockedMark = unlockedSkins.includes(key) ? '✅' : '🔒';
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = `${unlockedMark} ${skin.name}`;
+        skinSelect.append(option);
+      });
+      if (!skinConfigs[currentSkin]) currentSkin = 'golden';
+      skinSelect.value = currentSkin;
+      refreshSkinUI();
+    }
 
     function randomFood() {
       let next;
@@ -295,13 +343,15 @@
       return next;
     }
 
-    function randomObstacles(count = 18) {
+    function randomObstacles(count = 8) {
       const blocks = [];
+      const types = ['crystal', 'totem', 'lava'];
       const isSpawnZone = (x, y) => x >= 9 && x <= 16 && y >= 9 && y <= 16;
       while (blocks.length < count) {
         const next = {
           x: Math.floor(Math.random() * tileCount),
-          y: Math.floor(Math.random() * tileCount)
+          y: Math.floor(Math.random() * tileCount),
+          type: types[Math.floor(Math.random() * types.length)]
         };
         const duplicated = blocks.some(block => block.x === next.x && block.y === next.y);
         if (duplicated || isSpawnZone(next.x, next.y)) continue;
@@ -342,6 +392,22 @@
       gain.connect(audioCtx.destination);
       osc.start(time);
       osc.stop(time + duration + 0.02);
+    }
+
+    function playSfx(freq, duration = 0.14, type = 'sine', gainValue = 0.08) {
+      ensureAudio();
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(gainValue, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + duration + 0.01);
     }
 
     function scheduleMusic() {
@@ -481,6 +547,8 @@
       if (hitWall || hitSelf || hitObstacle) {
         gameOver = true;
         clearInterval(timer);
+        playSfx(120, 0.28, 'sawtooth', 0.09);
+        setTimeout(() => playSfx(80, 0.35, 'triangle', 0.08), 50);
         updateState('撞到墙体/障碍物了！点击“重新开始”再来一局。', '已结束', 'over');
         draw();
         return;
@@ -490,8 +558,12 @@
 
       if (head.x === food.x && head.y === food.y) {
         spawnParticles(food.x, food.y);
+        playSfx(660, 0.11, 'triangle', 0.07);
+        setTimeout(() => playSfx(880, 0.1, 'triangle', 0.05), 30);
         score += 10;
+        coins += 5;
         scoreEl.textContent = score;
+        coinsEl.textContent = coins;
 
         if (score > bestScore) {
           bestScore = score;
@@ -500,6 +572,7 @@
         }
 
         food = randomFood();
+        persistProfile();
       } else {
         snake.pop();
       }
@@ -566,11 +639,19 @@
         const px = block.x * gridSize;
         const py = block.y * gridSize;
         const crystal = ctx.createLinearGradient(px, py, px + gridSize, py + gridSize);
-        crystal.addColorStop(0, 'rgba(125, 211, 252, 0.95)');
-        crystal.addColorStop(1, 'rgba(30, 64, 175, 0.95)');
+        if (block.type === 'crystal') {
+          crystal.addColorStop(0, 'rgba(125, 211, 252, 0.95)');
+          crystal.addColorStop(1, 'rgba(30, 64, 175, 0.95)');
+        } else if (block.type === 'totem') {
+          crystal.addColorStop(0, 'rgba(251, 191, 36, 0.95)');
+          crystal.addColorStop(1, 'rgba(161, 98, 7, 0.95)');
+        } else {
+          crystal.addColorStop(0, 'rgba(248, 113, 113, 0.95)');
+          crystal.addColorStop(1, 'rgba(127, 29, 29, 0.95)');
+        }
 
         ctx.save();
-        ctx.shadowColor = 'rgba(56, 189, 248, 0.45)';
+        ctx.shadowColor = block.type === 'crystal' ? 'rgba(56, 189, 248, 0.45)' : 'rgba(245, 158, 11, 0.42)';
         ctx.shadowBlur = 12;
         ctx.fillStyle = crystal;
         ctx.beginPath();
@@ -594,13 +675,15 @@
     }
 
     function drawSnake() {
+      const skin = skinConfigs[currentSkin] || skinConfigs.golden;
+      const evolveLevel = snake.length < 8 ? 0 : snake.length < 14 ? 1 : 2;
       snake.forEach((part, index) => {
         const px = part.x * gridSize;
         const py = part.y * gridSize;
         const ratio = index / Math.max(1, snake.length - 1);
         const bodyGrad = ctx.createLinearGradient(px, py, px + gridSize, py + gridSize);
-        bodyGrad.addColorStop(0, index === 0 ? '#a7f3d0' : `hsl(${153 - ratio * 40} 70% 58%)`);
-        bodyGrad.addColorStop(1, index === 0 ? '#10b981' : `hsl(${141 - ratio * 25} 72% 36%)`);
+        bodyGrad.addColorStop(0, index === 0 ? skin.bodyA : `hsl(${48 - ratio * 18} 85% ${68 - ratio * 10}%)`);
+        bodyGrad.addColorStop(1, index === 0 ? skin.bodyB : `hsl(${40 - ratio * 12} 82% ${41 - ratio * 8}%)`);
 
         ctx.save();
         ctx.shadowColor = index === 0 ? 'rgba(110, 231, 183, 0.75)' : 'rgba(34, 197, 94, 0.45)';
@@ -620,11 +703,21 @@
         ctx.fill();
 
         if (index > 0) {
-          ctx.fillStyle = 'rgba(250, 204, 21, 0.95)';
+          ctx.fillStyle = skin.spike;
           ctx.beginPath();
-          ctx.moveTo(px + gridSize * 0.25, py + 2);
-          ctx.lineTo(px + gridSize * 0.5, py - 1);
-          ctx.lineTo(px + gridSize * 0.75, py + 2);
+          if ((index + evolveLevel) % 3 === 0) {
+            ctx.moveTo(px + gridSize * 0.2, py + 2);
+            ctx.lineTo(px + gridSize * 0.5, py - 3);
+            ctx.lineTo(px + gridSize * 0.8, py + 2);
+          } else if ((index + evolveLevel) % 3 === 1) {
+            ctx.moveTo(px + gridSize * 0.18, py + gridSize * 0.5);
+            ctx.lineTo(px - 2, py + gridSize * 0.32);
+            ctx.lineTo(px + gridSize * 0.18, py + gridSize * 0.2);
+          } else {
+            ctx.moveTo(px + gridSize * 0.82, py + gridSize * 0.5);
+            ctx.lineTo(px + gridSize + 2, py + gridSize * 0.32);
+            ctx.lineTo(px + gridSize * 0.82, py + gridSize * 0.2);
+          }
           ctx.closePath();
           ctx.fill();
         }
@@ -638,7 +731,7 @@
       const eyeOffsetY = direction.y * 3 + (direction.x !== 0 ? 3.5 : 0);
 
       const hornTilt = direction.x !== 0 ? direction.x : (direction.y > 0 ? 0.6 : -0.6);
-      ctx.fillStyle = '#fde68a';
+      ctx.fillStyle = skin.spike;
       ctx.beginPath();
       ctx.moveTo(centerX - 5, centerY - 7);
       ctx.lineTo(centerX - 8 - hornTilt * 2, centerY - 13);
@@ -652,7 +745,7 @@
       ctx.closePath();
       ctx.fill();
 
-      ctx.fillStyle = '#052e16';
+      ctx.fillStyle = skin.eye;
       ctx.beginPath();
       ctx.arc(centerX - eyeOffsetX * 0.45, centerY - eyeOffsetY * 0.45, 2.1, 0, Math.PI * 2);
       ctx.arc(centerX + eyeOffsetY * 0.45, centerY - eyeOffsetX * 0.45, 2.1, 0, Math.PI * 2);
@@ -665,7 +758,7 @@
       ctx.fill();
 
       const whiskerSwing = Math.sin(Date.now() / 120) * 1.2;
-      ctx.strokeStyle = 'rgba(250, 204, 21, 0.9)';
+      ctx.strokeStyle = skin.spike;
       ctx.lineWidth = 1.4;
       ctx.beginPath();
       ctx.moveTo(centerX - 7, centerY + 1);
@@ -727,6 +820,28 @@
     restartBtn.addEventListener('click', resetGame);
     pauseBtn.addEventListener('click', togglePause);
     musicBtn.addEventListener('click', toggleMusic);
+    skinSelect.addEventListener('change', () => {
+      refreshSkinUI();
+    });
+    buySkinBtn.addEventListener('click', () => {
+      const key = skinSelect.value;
+      const skin = skinConfigs[key];
+      if (!unlockedSkins.includes(key)) {
+        if (coins < skin.cost) {
+          updateState(`龙币不足：需要 ${skin.cost}，当前 ${coins}。`, '商店提示');
+          playSfx(180, 0.12, 'square', 0.06);
+          return;
+        }
+        coins -= skin.cost;
+        coinsEl.textContent = coins;
+        unlockedSkins.push(key);
+      }
+      currentSkin = key;
+      persistProfile();
+      buildSkinOptions();
+      updateState(`已装备 ${skin.name}！每节龙躯都有独特纹理。`, '已换肤');
+      playSfx(520, 0.13, 'triangle', 0.08);
+    });
 
     speedSelect.addEventListener('change', () => {
       tickMs = Number(speedSelect.value);
@@ -748,6 +863,7 @@
       });
     });
 
+    buildSkinOptions();
     resetGame();
   </script>
 </body>
