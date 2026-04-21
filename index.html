@@ -3,251 +3,1280 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>贪食蛇</title>
+  <title>龙影贪食蛇·终端版</title>
   <style>
     :root {
       color-scheme: dark;
-      --bg: #0f172a;
-      --panel: #1e293b;
-      --text: #e2e8f0;
-      --accent: #22c55e;
-      --danger: #ef4444;
+      --bg0: #070b18;
+      --bg1: #0d1b34;
+      --panel: rgba(11, 19, 40, 0.74);
+      --line: rgba(148, 163, 184, 0.26);
+      --text: #e5edff;
+      --muted: #9cb0d7;
+      --glow: 0 0 18px rgba(76, 201, 240, 0.3);
     }
-
     * { box-sizing: border-box; }
-
     body {
       margin: 0;
       min-height: 100vh;
       display: grid;
       place-items: center;
-      background: radial-gradient(circle at top, #1e293b, #0f172a 65%);
-      color: var(--text);
+      padding: 16px;
       font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 18%, rgba(76, 201, 240, 0.18), transparent 33%),
+        radial-gradient(circle at 88% 82%, rgba(245, 158, 11, 0.14), transparent 37%),
+        linear-gradient(150deg, var(--bg1), var(--bg0));
     }
-
-    .game-wrap {
-      width: min(92vw, 520px);
-      background: rgba(15, 23, 42, 0.88);
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      border-radius: 16px;
-      padding: 18px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+    .app {
+      width: min(96vw, 980px);
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      backdrop-filter: blur(7px);
+      box-shadow: 0 28px 56px rgba(0, 0, 0, 0.42);
+      padding: 16px;
     }
-
-    h1 {
-      margin: 0 0 12px;
-      text-align: center;
-      font-size: 1.6rem;
+    .top { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    h1 { margin: 0; font-size: clamp(1.2rem, 2.2vw, 1.8rem); }
+    .badge { border:1px solid rgba(76,201,240,.45); padding:5px 11px; border-radius:999px; color:#a5f3fc; background:rgba(14,116,144,.2); font-weight:700; box-shadow:var(--glow); }
+    .hud { display:grid; grid-template-columns: repeat(8,minmax(0,1fr)); gap:8px; margin-bottom:10px; }
+    .card { border:1px solid var(--line); border-radius:12px; padding:7px 9px; background:rgba(15,23,42,.62); }
+    .k { color:var(--muted); font-size:.72rem; display:block; margin-bottom:2px; }
+    .v { font-weight:800; font-size:1rem; }
+    .controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px; }
+    button, select {
+      border:1px solid rgba(148,163,184,.35); border-radius:10px; padding:8px 11px; font-weight:700;
+      color:var(--text); background:rgba(15,23,42,.92);
     }
-
-    .status {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 12px;
-      font-weight: 600;
-    }
-
-    .tips {
-      margin: 10px 0 14px;
-      color: #cbd5e1;
-      font-size: 0.92rem;
-      text-align: center;
-    }
-
-    canvas {
-      display: block;
-      width: 100%;
-      background: #020617;
-      border: 2px solid rgba(148, 163, 184, 0.35);
-      border-radius: 12px;
-      image-rendering: pixelated;
-    }
-
     button {
-      border: 0;
-      background: var(--accent);
-      color: #052e16;
-      font-weight: 700;
-      padding: 8px 14px;
-      border-radius: 8px;
-      cursor: pointer;
+      cursor:pointer; background:linear-gradient(135deg, rgba(76,201,240,.24), rgba(14,165,233,.16)); box-shadow:var(--glow);
+      transition: transform 120ms ease, filter 120ms ease;
     }
-
-    button:hover { filter: brightness(1.08); }
-
-    .over { color: var(--danger); }
+    button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    button:disabled { opacity:.5; cursor:not-allowed; box-shadow:none; }
+    .board-wrap { position:relative; border:1px solid rgba(148,163,184,.3); border-radius:14px; overflow:hidden; background:#030712; }
+    canvas { width:100%; display:block; }
+    .msg { margin-top:10px; min-height:1.4em; color:#dbeafe; text-align:center; font-size:.92rem; }
+    .overlay { position:absolute; inset:0; display:none; place-items:center; background:rgba(2,6,23,.7); z-index:4; }
+    .overlay.show { display:grid; }
+    .panel { width:min(92%,560px); border-radius:14px; border:1px solid var(--line); background:rgba(9,15,30,.92); padding:16px; box-shadow:0 18px 38px rgba(0,0,0,.45); }
+    .panel h2 { margin:0 0 8px; }
+    .panel p { margin:6px 0; color:#c8d6f8; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+    .mobile { margin-top:10px; display:grid; grid-template-columns: repeat(3,56px); justify-content:center; gap:8px; }
+    .mobile button { padding:10px; box-shadow:none; }
+    .mobile .blank { visibility:hidden; }
+    @media (max-width:860px){ .hud{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+    @media (max-width:540px){ .hud{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
   </style>
 </head>
 <body>
-  <main class="game-wrap">
-    <h1>贪食蛇</h1>
-    <div class="status">
-      <span>分数：<strong id="score">0</strong></span>
-      <button id="restart" type="button">重新开始</button>
+  <main class="app">
+    <section class="top">
+      <h1>🐉 龙影贪食蛇 · 高级版</h1>
+      <span class="badge" id="stateBadge">准备就绪</span>
+    </section>
+
+    <section class="hud">
+      <div class="card"><span class="k">分数</span><span class="v" id="score">0</span></div>
+      <div class="card"><span class="k">最高分</span><span class="v" id="best">0</span></div>
+      <div class="card"><span class="k">连击</span><span class="v" id="combo">x0</span></div>
+      <div class="card"><span class="k">倍率</span><span class="v" id="mult">x1.0</span></div>
+      <div class="card"><span class="k">本局龙币</span><span class="v" id="coins">0</span></div>
+      <div class="card"><span class="k">总龙币</span><span class="v" id="totalCoins">1000</span></div>
+      <div class="card"><span class="k">阶段</span><span class="v" id="stage">前期</span></div>
+      <div class="card"><span class="k">状态</span><span class="v" id="skillCd">无</span></div>
+    </section>
+
+    <section class="controls">
+      <button id="restart">重新开始</button>
+      <button id="pause">暂停</button>
+      <button id="music">音乐：开</button>
+      <label>模式<select id="mode"><option value="classic">经典</option><option value="advanced" selected>进阶</option><option value="endless">无尽</option><option value="challenge">挑战</option><option value="casual">休闲</option></select></label>
+      <label>主题<select id="theme"></select></label>
+      <label>皮肤<select id="skin"></select></label>
+      <button id="buySkin">购买/装备</button>
+    </section>
+
+    <section class="board-wrap">
+      <canvas id="board" width="720" height="720"></canvas>
+      <div class="overlay show" id="guideOverlay">
+        <div class="panel">
+          <h2>龙系玩法引导</h2>
+          <p>方向键/WASD移动，空格暂停，Shift常规加速，Q冲刺突进，E吞噬领域，R雷暴吐息。</p>
+          <p>地图会同时刷新多个果实、不同尺寸障碍、随机道具和 AI 龙蛇。你已有 <strong>1000 龙币</strong>。</p>
+          <div class="row"><button id="startGuide">开始狩猎</button></div>
+        </div>
+      </div>
+      <div class="overlay" id="resultOverlay">
+        <div class="panel">
+          <h2>本局结算</h2>
+          <p id="resultStats"></p>
+          <p id="resultTasks"></p>
+          <div class="row"><button id="againBtn">再来一局</button><button id="closeResult">关闭</button></div>
+        </div>
+      </div>
+    </section>
+
+    <p class="msg" id="message">目标：保持连击，争夺稀有果实，利用道具冲分！</p>
+
+    <div class="mobile">
+      <button class="blank">·</button><button data-dir="up">↑</button><button class="blank">·</button>
+      <button data-dir="left">←</button><button data-dir="down">↓</button><button data-dir="right">→</button>
     </div>
-    <canvas id="board" width="480" height="480" aria-label="Snake game board"></canvas>
-    <p id="message" class="tips">方向键 / WASD 控制移动，吃到食物会变长。</p>
   </main>
 
   <script>
-    const canvas = document.getElementById('board');
-    const ctx = canvas.getContext('2d');
-    const scoreEl = document.getElementById('score');
-    const messageEl = document.getElementById('message');
-    const restartBtn = document.getElementById('restart');
+    const CONFIG = {
+      grid: 24,
+      cell: 720 / 24,
+      comboWindow: 2600,
+      baseTick: 118,
+      fruits: {
+        normal: { score: 10, growth: 1, coins: 3, color: '#f43f5e', life: 9999, weight: 52 },
+        rare: { score: 28, growth: 2, coins: 8, color: '#a78bfa', life: 8500, weight: 16 },
+        coin: { score: 12, growth: 1, coins: 20, color: '#f59e0b', life: 9000, weight: 16 },
+        combo: { score: 14, growth: 1, coins: 6, color: '#22d3ee', life: 7000, weight: 8 },
+        energy: { score: 16, growth: 1, coins: 6, color: '#4ade80', life: 7000, weight: 8 }
+      },
+      fruitCaps: { normal: 4, rare: 2, coin: 2, combo: 1, energy: 1 },
+      items: {
+        shield: { color: '#67e8f9', life: 9000, duration: 6500, label: '护盾' },
+        magnet: { color: '#facc15', life: 8500, duration: 7000, label: '磁铁' },
+        double: { color: '#fb7185', life: 8500, duration: 6000, label: '双倍得分' },
+        freeze: { color: '#93c5fd', life: 8000, duration: 5200, label: '冻结时间' },
+        shrink: { color: '#a3e635', life: 9000, duration: 0, label: '缩身' },
+        dash: { color: '#f97316', life: 7600, duration: 4500, label: '冲刺' },
+        phase: { color: '#c4b5fd', life: 6800, duration: 4300, label: '穿越' },
+        frenzy: { color: '#22c55e', life: 7000, duration: 5000, label: '狂热' }
+      },
+      modes: {
+        classic: { wrap: false, obstacleLevel: 1, itemChance: 0.015, stageBoost: 0.03 },
+        advanced: { wrap: false, obstacleLevel: 2, itemChance: 0.022, stageBoost: 0.05 },
+        endless: { wrap: false, obstacleLevel: 3, itemChance: 0.026, stageBoost: 0.065 },
+        challenge: { wrap: false, obstacleLevel: 2, itemChance: 0.024, stageBoost: 0.055, goalScore: 260 },
+        casual: { wrap: true, obstacleLevel: 1, itemChance: 0.018, stageBoost: 0.02 }
+      },
+      aiByMode: { classic: 1, advanced: 3, endless: 4, challenge: 3, casual: 2 },
+      aiNames: ['赤鳞', '霜翼', '雷牙', '夜魇', '苍穹', '裂焰'],
+      skins: {
+        azure: { name: '幽青灵龙', cost: 0, a: '#67e8f9', b: '#0e7490', core: '#ccfbf1', eye: '#083344', glow: 'rgba(34,211,238,.8)' },
+        inferno: { name: '焰鳞魔龙', cost: 180, a: '#fdba74', b: '#c2410c', core: '#ffedd5', eye: '#7c2d12', glow: 'rgba(249,115,22,.9)' },
+        frost: { name: '冰魄霜龙', cost: 220, a: '#bfdbfe', b: '#2563eb', core: '#e0f2fe', eye: '#1e3a8a', glow: 'rgba(56,189,248,.9)' },
+        thunder: { name: '雷霆机甲龙', cost: 280, a: '#c4b5fd', b: '#6d28d9', core: '#ede9fe', eye: '#2e1065', glow: 'rgba(168,85,247,.9)' },
+        stellar: { name: '星穹圣龙', cost: 360, a: '#fde68a', b: '#ca8a04', core: '#fff7c2', eye: '#78350f', glow: 'rgba(251,191,36,.9)' }
+      },
+      themes: {
+        lava: { name: '赤焰龙域', bgA: '#1a0c0c', bgB: '#2c1111', grid: 'rgba(248,113,113,.12)' },
+        frost: { name: '冰晶秘境', bgA: '#082f49', bgB: '#0f172a', grid: 'rgba(125,211,252,.13)' },
+        star: { name: '星海天穹', bgA: '#0b1024', bgB: '#111827', grid: 'rgba(165,180,252,.13)' },
+        ruin: { name: '远古遗迹', bgA: '#1f2937', bgB: '#111827', grid: 'rgba(250,204,21,.1)' },
+        cyber: { name: '赛博龙城', bgA: '#030712', bgB: '#0f172a', grid: 'rgba(34,211,238,.12)' }
+      },
+      achievements: [
+        { id: 'dragonize', title: '初次化龙', check: s => s.score >= 80 },
+        { id: 'combo12', title: '连斩之龙', check: s => s.maxCombo >= 12 },
+        { id: 'rich', title: '富甲龙域', check: s => s.totalCoinsEarned >= 200 },
+        { id: 'immortal', title: '不灭龙魂', check: s => s.shieldSaved && s.score >= 150 }
+      ]
+    };
 
-    const gridSize = 20;
-    const tileCount = canvas.width / gridSize;
-    const tickMs = 110;
+    const $ = id => document.getElementById(id);
+    const UI = {
+      score: $('score'), best: $('best'), combo: $('combo'), mult: $('mult'), coins: $('coins'), totalCoins: $('totalCoins'),
+      stage: $('stage'), skillCd: $('skillCd'), stateBadge: $('stateBadge'), message: $('message'),
+      mode: $('mode'), theme: $('theme'), skin: $('skin'), buySkin: $('buySkin'), music: $('music'),
+      restart: $('restart'), pause: $('pause'), board: $('board'), guideOverlay: $('guideOverlay'), resultOverlay: $('resultOverlay'),
+      resultStats: $('resultStats'), resultTasks: $('resultTasks'), startGuide: $('startGuide'), againBtn: $('againBtn'), closeResult: $('closeResult')
+    };
 
-    let snake;
-    let direction;
-    let pendingDirection;
-    let food;
-    let score;
-    let timer;
-    let gameOver;
+    const CTX = UI.board.getContext('2d');
 
-    function randomFood() {
-      let next;
-      do {
-        next = {
-          x: Math.floor(Math.random() * tileCount),
-          y: Math.floor(Math.random() * tileCount)
+    const Store = {
+      key: 'dragon-snake-profile-v3',
+      load() {
+        const base = { bestScore: 0, totalCoins: 1000, unlockedSkins: ['azure'], currentSkin: 'azure', currentTheme: 'cyber', achievements: [], musicOn: true };
+        const raw = localStorage.getItem(this.key);
+        if (!raw) return base;
+        return { ...base, ...JSON.parse(raw) };
+      },
+      save(p) { localStorage.setItem(this.key, JSON.stringify(p)); }
+    };
+
+    const Sound = {
+      ctx: null,
+      musicOn: true,
+      timer: null,
+      seq: [220, 247, 262, 294, 330, 392, 349, 294],
+      i: 0,
+      next: 0,
+      ensure() {
+        if (this.ctx) return;
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.next = this.ctx.currentTime;
+        if (this.musicOn) this.startMusic();
+      },
+      tone(f, d = .12, type = 'triangle', g = .06, t = null) {
+        this.ensure();
+        const at = t ?? this.ctx.currentTime;
+        const o = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        o.type = type;
+        o.frequency.setValueAtTime(f, at);
+        gain.gain.setValueAtTime(.0001, at);
+        gain.gain.exponentialRampToValueAtTime(g, at + .01);
+        gain.gain.exponentialRampToValueAtTime(.0001, at + d);
+        o.connect(gain); gain.connect(this.ctx.destination); o.start(at); o.stop(at + d + .01);
+      },
+      click() { this.tone(430, .05, 'square', .035); },
+      eat() { this.tone(720, .08, 'triangle', .055); this.tone(980, .07, 'triangle', .04, this.ctx.currentTime + .04); },
+      rare() { this.tone(520, .16, 'sawtooth', .07); this.tone(1200, .14, 'triangle', .06, this.ctx.currentTime + .05); },
+      combo() { this.tone(820, .08, 'square', .05); },
+      item() { this.tone(610, .12, 'triangle', .06); },
+      skill() { this.tone(300, .09, 'sawtooth', .07); this.tone(600, .11, 'triangle', .06, this.ctx.currentTime + .03); },
+      warning() { this.tone(180, .06, 'square', .045); },
+      fail() { this.tone(130, .25, 'sawtooth', .09); this.tone(88, .34, 'triangle', .08, this.ctx.currentTime + .05); },
+      ach() { this.tone(880, .12, 'triangle', .065); this.tone(1176, .15, 'triangle', .055, this.ctx.currentTime + .08); },
+      schedule() {
+        if (!this.musicOn || !this.ctx) return;
+        while (this.next < this.ctx.currentTime + .18) {
+          const n = this.seq[this.i % this.seq.length];
+          this.tone(n, .2, 'triangle', .026, this.next);
+          this.tone(n * 1.5, .15, 'sine', .018, this.next + .025);
+          this.next += .24;
+          this.i += 1;
+        }
+      },
+      startMusic() { clearInterval(this.timer); this.timer = setInterval(() => this.schedule(), 60); },
+      stopMusic() { clearInterval(this.timer); this.timer = null; }
+    };
+
+    const Game = {
+      profile: Store.load(),
+      state: null,
+      particles: [],
+      floatTexts: [],
+      tasks: [],
+
+      init() {
+        Sound.musicOn = this.profile.musicOn;
+        UI.music.textContent = Sound.musicOn ? '音乐：开' : '音乐：关';
+        this.fillSelectors();
+        this.bind();
+        this.newRun();
+        this.loop();
+      },
+
+      fillSelectors() {
+        UI.theme.innerHTML = '';
+        Object.entries(CONFIG.themes).forEach(([k, v]) => { const o = document.createElement('option'); o.value = k; o.textContent = v.name; UI.theme.append(o); });
+        UI.theme.value = this.profile.currentTheme;
+
+        UI.skin.innerHTML = '';
+        Object.entries(CONFIG.skins).forEach(([k, v]) => {
+          const o = document.createElement('option');
+          o.value = k;
+          o.textContent = `${this.profile.unlockedSkins.includes(k) ? '✅' : '🔒'} ${v.name}`;
+          UI.skin.append(o);
+        });
+        UI.skin.value = this.profile.currentSkin;
+        this.updateShopBtn();
+      },
+
+      updateShopBtn() {
+        const skin = CONFIG.skins[UI.skin.value];
+        UI.buySkin.textContent = this.profile.unlockedSkins.includes(UI.skin.value) ? `装备 ${skin.name}` : `购买 ${skin.name}(${skin.cost})`;
+      },
+
+      buildTasks() {
+        const all = [
+          { id: 'eat12', text: '吃到12个果实', check: s => s.eatCount >= 12, reward: 45 },
+          { id: 'item3', text: '拾取3个道具', check: s => s.itemsPicked >= 3, reward: 55 },
+          { id: 'combo8', text: '达成8连击', check: s => s.maxCombo >= 8, reward: 60 },
+          { id: 'live90', text: '生存90秒', check: s => s.duration >= 90, reward: 50 }
+        ];
+        this.tasks = all.sort(() => Math.random() - .5).slice(0, 2).map(t => ({ ...t, done: false }));
+      },
+
+      newRun() {
+        this.buildTasks();
+        const modeCfg = CONFIG.modes[UI.mode.value];
+        this.state = {
+          running: true,
+          paused: false,
+          over: false,
+          mode: UI.mode.value,
+          stage: 1,
+          tick: CONFIG.baseTick,
+          lastTick: performance.now(),
+          dir: { x: 1, y: 0 },
+          nextDir: { x: 1, y: 0 },
+          body: [{ x: 10, y: 12 }, { x: 9, y: 12 }, { x: 8, y: 12 }],
+          smoothBody: [],
+          grow: 0,
+          fruits: [],
+          items: [],
+          obstacles: this.makeObstacles(modeCfg.obstacleLevel),
+          bots: this.makeBots(CONFIG.aiByMode[UI.mode.value] || 2),
+          score: 0,
+          runCoins: 0,
+          combo: 0,
+          maxCombo: 0,
+          mult: 1,
+          comboDeadline: 0,
+          eatCount: 0,
+          itemsPicked: 0,
+          totalCoinsEarned: 0,
+          duration: 0,
+          startedAt: performance.now(),
+          boost: false,
+          shieldSaved: false,
+          aiKills: 0,
+          deathCause: '未知',
+          effects: { shield: 0, magnet: 0, double: 0, freeze: 0, dash: 0, phase: 0, frenzy: 0 },
+          skillCd: { q: 0, e: 0, r: 0 },
+          skillFx: []
         };
-      } while (snake.some(part => part.x === next.x && part.y === next.y));
-      return next;
-    }
+        this.ensureFruitPopulation(true);
+        UI.stateBadge.textContent = '进行中';
+        UI.resultOverlay.classList.remove('show');
+        UI.message.textContent = '多果实争夺已开启：优先抢稀有和道具。';
+        this.syncHud();
+      },
 
-    function resetGame() {
-      snake = [
-        { x: 10, y: 10 },
-        { x: 9, y: 10 },
-        { x: 8, y: 10 }
-      ];
-      direction = { x: 1, y: 0 };
-      pendingDirection = direction;
-      food = randomFood();
-      score = 0;
-      gameOver = false;
-      scoreEl.textContent = score;
-      messageEl.textContent = '方向键 / WASD 控制移动，吃到食物会变长。';
-      messageEl.classList.remove('over');
-      clearInterval(timer);
-      timer = setInterval(gameLoop, tickMs);
-      draw();
-    }
+      makeObstacles(level) {
+        const obs = [];
+        const addObstacle = (x, y, w, h, type) => {
+          const cells = [];
+          for (let ix = 0; ix < w; ix += 1) {
+            for (let iy = 0; iy < h; iy += 1) {
+              cells.push({ x: x + ix, y: y + iy });
+            }
+          }
+          obs.push({ x, y, w, h, type, cells });
+        };
 
-    function setDirection(next) {
-      if (gameOver) return;
-      if (next.x === -direction.x && next.y === -direction.y) return;
-      pendingDirection = next;
-    }
+        const count = 5 + level * 2;
+        let guard = 0;
+        while (obs.length < count && guard < 260) {
+          guard += 1;
+          const sizeType = Math.random() < 0.5 ? 'small' : Math.random() < 0.75 ? 'mid' : 'large';
+          const shape = Math.random() < 0.35 ? 'pillar' : Math.random() < 0.6 ? 'crystal' : Math.random() < 0.8 ? 'rock' : 'trap';
+          const dims = sizeType === 'small' ? [1, 1] : sizeType === 'mid' ? [2, 1 + Math.floor(Math.random() * 2)] : [2 + Math.floor(Math.random() * 2), 2 + Math.floor(Math.random() * 2)];
+          const [w, h] = dims;
+          const x = Math.floor(Math.random() * (CONFIG.grid - w));
+          const y = Math.floor(Math.random() * (CONFIG.grid - h));
 
-    function onKeydown(event) {
-      const key = event.key.toLowerCase();
-      const map = {
-        arrowup: { x: 0, y: -1 },
-        w: { x: 0, y: -1 },
-        arrowdown: { x: 0, y: 1 },
-        s: { x: 0, y: 1 },
-        arrowleft: { x: -1, y: 0 },
-        a: { x: -1, y: 0 },
-        arrowright: { x: 1, y: 0 },
-        d: { x: 1, y: 0 }
-      };
-      if (!map[key]) return;
-      event.preventDefault();
-      setDirection(map[key]);
-    }
+          const inSpawn = x < 13 && x + w > 6 && y < 15 && y + h > 8;
+          if (inSpawn) continue;
 
-    function gameLoop() {
-      direction = pendingDirection;
+          const overlap = obs.some(o => o.cells.some(c => c.x >= x - 1 && c.x < x + w + 1 && c.y >= y - 1 && c.y < y + h + 1));
+          if (overlap) continue;
+          addObstacle(x, y, w, h, shape);
+        }
+        return obs;
+      },
 
-      const head = {
-        x: snake[0].x + direction.x,
-        y: snake[0].y + direction.y
-      };
+      makeBots(count) {
+        const bots = [];
+        for (let i = 0; i < count; i += 1) {
+          const start = { x: 16 + (i % 3), y: 4 + i * 3 };
+          bots.push({
+            id: i + 1,
+            name: CONFIG.aiNames[i % CONFIG.aiNames.length],
+            color: ['#f97316', '#60a5fa', '#a78bfa', '#34d399', '#f43f5e'][i % 5],
+            body: [start, { x: start.x - 1, y: start.y }, { x: start.x - 2, y: start.y }],
+            dir: { x: -1, y: 0 },
+            next: { x: -1, y: 0 },
+            alive: true,
+            grow: 0,
+            score: 0,
+            isElite: i === count - 1 && count >= 4
+          });
+        }
+        return bots;
+      },
 
-      const hitWall = head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount;
-      const hitSelf = snake.some(part => part.x === head.x && part.y === head.y);
+      occupied(x, y) {
+        const s = this.state;
+        return s.body.some(p => p.x === x && p.y === y) || s.obstacles.some(o => o.cells.some(c => c.x === x && c.y === y));
+      },
 
-      if (hitWall || hitSelf) {
-        gameOver = true;
-        clearInterval(timer);
-        messageEl.textContent = '游戏结束！点击“重新开始”再来一局。';
-        messageEl.classList.add('over');
-        draw();
-        return;
+      randomCell() {
+        let cell;
+        do {
+          cell = { x: Math.floor(Math.random() * CONFIG.grid), y: Math.floor(Math.random() * CONFIG.grid) };
+        } while (this.occupied(cell.x, cell.y) || this.state.fruits.some(f => f.x === cell.x && f.y === cell.y) || this.state.items.some(i => i.x === cell.x && i.y === cell.y));
+        return cell;
+      },
+
+      pickFruitType() {
+        const entries = Object.entries(CONFIG.fruits);
+        const total = entries.reduce((a, [, v]) => a + v.weight, 0);
+        let r = Math.random() * total;
+        for (const [k, v] of entries) {
+          r -= v.weight;
+          if (r <= 0) return k;
+        }
+        return 'normal';
+      },
+
+      ensureFruitPopulation(force = false) {
+        const s = this.state;
+        const now = performance.now();
+        s.fruits = s.fruits.filter(f => force || f.expireAt > now);
+
+        Object.entries(CONFIG.fruitCaps).forEach(([type, cap]) => {
+          const count = s.fruits.filter(f => f.type === type).length;
+          if (count < cap) {
+            for (let i = count; i < cap; i += 1) {
+              const c = this.randomCell();
+              const cfg = CONFIG.fruits[type];
+              s.fruits.push({ x: c.x, y: c.y, type, spawnAt: now, expireAt: now + cfg.life + Math.random() * 2000 });
+            }
+          }
+        });
+      },
+
+      maybeSpawnItem() {
+        const s = this.state;
+        const modeCfg = CONFIG.modes[s.mode];
+        if (s.items.length >= 3 || Math.random() > modeCfg.itemChance) return;
+        const keys = Object.keys(CONFIG.items);
+        const type = keys[Math.floor(Math.random() * keys.length)];
+        const c = this.randomCell();
+        const cfg = CONFIG.items[type];
+        s.items.push({ x: c.x, y: c.y, type, expireAt: performance.now() + cfg.life });
+      },
+
+      setDir(next) {
+        const s = this.state;
+        if (s.over || s.paused) return;
+        if (next.x === -s.dir.x && next.y === -s.dir.y) return;
+        s.nextDir = next;
+      },
+
+      triggerSkillQ() {
+        const s = this.state;
+        if (performance.now() < s.skillCd.q) return;
+        const now = performance.now();
+        s.effects.dash = now + 2400;
+        s.effects.phase = now + 1400;
+        s.skillCd.q = now + 9000;
+        s.skillFx.push({ type: 'dash', until: now + 1000, x: s.body[0].x, y: s.body[0].y });
+        this.float('冲刺突进！', s.body[0].x, s.body[0].y, '#f97316');
+        Sound.skill();
+      },
+
+      triggerSkillE() {
+        const s = this.state;
+        if (performance.now() < s.skillCd.e) return;
+        const now = performance.now();
+        s.effects.magnet = now + 7000;
+        s.effects.double = now + 4200;
+        s.skillCd.e = now + 14000;
+        s.skillFx.push({ type: 'domain', until: now + 7000, x: s.body[0].x, y: s.body[0].y });
+        this.float('吞噬领域展开', s.body[0].x, s.body[0].y, '#22d3ee');
+        Sound.skill();
+      },
+
+      triggerSkillR() {
+        const s = this.state;
+        if (performance.now() < s.skillCd.r) return;
+        const now = performance.now();
+        s.skillCd.r = now + 16000;
+        s.skillFx.push({ type: 'thunder', until: now + 1200, x: s.body[0].x, y: s.body[0].y });
+        this.float('雷暴吐息', s.body[0].x, s.body[0].y, '#c4b5fd');
+        Sound.skill();
+
+        s.bots.forEach(bot => {
+          if (!bot.alive) return;
+          const head = bot.body[0];
+          const dist = Math.abs(head.x - s.body[0].x) + Math.abs(head.y - s.body[0].y);
+          if (dist <= 5) {
+            bot.body = bot.body.slice(0, Math.max(2, bot.body.length - 2));
+            bot.score = Math.max(0, bot.score - 15);
+          }
+        });
+      },
+
+      tick(now) {
+        const s = this.state;
+        if (!s.running || s.paused || s.over) return;
+
+        const modeCfg = CONFIG.modes[s.mode];
+        const speedMul = s.boost || s.effects.dash > now ? 0.65 : 1;
+        const freezeMul = s.effects.freeze > now ? 1.45 : 1;
+        const frenzyMul = s.effects.frenzy > now ? 0.82 : 1;
+        const due = s.tick * speedMul * freezeMul * frenzyMul;
+        if (now - s.lastTick < due) return;
+        s.lastTick = now;
+
+        s.duration = Math.floor((now - s.startedAt) / 1000);
+        s.dir = s.nextDir;
+        const head = { x: s.body[0].x + s.dir.x, y: s.body[0].y + s.dir.y };
+
+        if (modeCfg.wrap || s.effects.phase > now) {
+          if (head.x < 0) head.x = CONFIG.grid - 1;
+          if (head.x >= CONFIG.grid) head.x = 0;
+          if (head.y < 0) head.y = CONFIG.grid - 1;
+          if (head.y >= CONFIG.grid) head.y = 0;
+        }
+
+        const hitWall = !(modeCfg.wrap || s.effects.phase > now) && (head.x < 0 || head.x >= CONFIG.grid || head.y < 0 || head.y >= CONFIG.grid);
+        const hitSelf = s.body.some(p => p.x === head.x && p.y === head.y);
+        const hitObs = s.obstacles.some(o => o.cells.some(c => c.x === head.x && c.y === head.y));
+
+        if (hitWall || hitSelf || hitObs) {
+          if (s.effects.shield > now) {
+            s.effects.shield = 0;
+            s.shieldSaved = true;
+            this.float('护盾抵消致命伤害', head.x, head.y, '#67e8f9');
+            Sound.combo();
+            return;
+          }
+          if (s.mode === 'casual') {
+            s.body = s.body.slice(0, Math.max(4, s.body.length - 3));
+            this.float('休闲模式：惩罚减免', head.x, head.y, '#a5b4fc');
+            return;
+          }
+          s.deathCause = hitWall ? '撞墙' : hitSelf ? '撞到自己' : '撞上障碍';
+          this.endRun();
+          return;
+        }
+
+        s.body.unshift(head);
+
+        const fruit = this.findFruitToEat(head, now);
+        if (fruit) {
+          this.consumeFruit(fruit, now);
+        } else {
+          if (s.grow > 0) s.grow -= 1;
+          else s.body.pop();
+
+          if (now > s.comboDeadline && s.combo > 0) {
+            s.combo = 0;
+            s.mult = s.effects.double > now ? 2 : 1;
+            UI.message.textContent = '连击中断，尝试先吃近处普通果实续连击。';
+          }
+        }
+
+        this.pickItem(head, now);
+        this.stepBots(now);
+        this.resolveBotConflicts(now);
+        this.ensureFruitPopulation();
+        this.maybeSpawnItem();
+        s.items = s.items.filter(i => i.expireAt > now);
+        this.updateStage(modeCfg);
+        this.checkTasksAndAchievements();
+        this.syncHud();
+      },
+
+      findFruitToEat(head, now) {
+        const s = this.state;
+        if (s.effects.magnet > now) {
+          const near = s.fruits.find(f => Math.abs(f.x - head.x) + Math.abs(f.y - head.y) <= 2);
+          if (near) return near;
+        }
+        return s.fruits.find(f => f.x === head.x && f.y === head.y);
+      },
+
+      bestFruitTarget(from) {
+        const s = this.state;
+        let best = null;
+        let bestScore = -Infinity;
+        s.fruits.forEach(f => {
+          const val = f.type === 'rare' ? 40 : f.type === 'coin' ? 34 : f.type === 'combo' ? 28 : f.type === 'energy' ? 24 : 16;
+          const dist = Math.abs(from.x - f.x) + Math.abs(from.y - f.y);
+          const score = val - dist * 1.6;
+          if (score > bestScore) { bestScore = score; best = f; }
+        });
+        return best;
+      },
+
+      stepBots(now) {
+        const s = this.state;
+        const modeCfg = CONFIG.modes[s.mode];
+        const dirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+
+        s.bots.forEach(bot => {
+          if (!bot.alive) return;
+          const head = bot.body[0];
+          const target = this.bestFruitTarget(head);
+          if (!target) return;
+
+          const preferred = [];
+          if (Math.abs(target.x - head.x) >= Math.abs(target.y - head.y)) {
+            preferred.push({ x: Math.sign(target.x - head.x), y: 0 }, { x: 0, y: Math.sign(target.y - head.y) });
+          } else {
+            preferred.push({ x: 0, y: Math.sign(target.y - head.y) }, { x: Math.sign(target.x - head.x), y: 0 });
+          }
+          preferred.push(...dirs);
+
+          let chosen = bot.dir;
+          for (const d of preferred) {
+            if (!d.x && !d.y) continue;
+            const nx = head.x + d.x;
+            const ny = head.y + d.y;
+            const wrapX = modeCfg.wrap ? (nx + CONFIG.grid) % CONFIG.grid : nx;
+            const wrapY = modeCfg.wrap ? (ny + CONFIG.grid) % CONFIG.grid : ny;
+            const out = !modeCfg.wrap && (wrapX < 0 || wrapX >= CONFIG.grid || wrapY < 0 || wrapY >= CONFIG.grid);
+            if (out) continue;
+            const blocked = this.state.obstacles.some(o => o.cells.some(c => c.x === wrapX && c.y === wrapY)) ||
+              this.state.body.some(p => p.x === wrapX && p.y === wrapY) ||
+              this.state.bots.some(ob => ob !== bot && ob.alive && ob.body.some(p => p.x === wrapX && p.y === wrapY));
+            if (!blocked) { chosen = d; break; }
+          }
+
+          bot.dir = chosen;
+          let next = { x: head.x + bot.dir.x, y: head.y + bot.dir.y };
+          if (modeCfg.wrap) next = { x: (next.x + CONFIG.grid) % CONFIG.grid, y: (next.y + CONFIG.grid) % CONFIG.grid };
+
+          const crash = (!modeCfg.wrap && (next.x < 0 || next.x >= CONFIG.grid || next.y < 0 || next.y >= CONFIG.grid)) ||
+            this.state.obstacles.some(o => o.cells.some(c => c.x === next.x && c.y === next.y));
+          if (crash) { bot.alive = false; return; }
+
+          bot.body.unshift(next);
+          const fruit = this.state.fruits.find(f => f.x === next.x && f.y === next.y);
+          if (fruit) {
+            const cfg = CONFIG.fruits[fruit.type];
+            bot.grow += cfg.growth;
+            bot.score += cfg.score;
+            this.state.fruits = this.state.fruits.filter(f => f !== fruit);
+            this.spawnParticles(next.x, next.y, bot.color, fruit.type === 'rare' ? 12 : 8);
+          }
+          if (bot.grow > 0) bot.grow -= 1;
+          else bot.body.pop();
+        });
+      },
+
+      consumeFruit(fruit, now) {
+        const s = this.state;
+        const cfg = CONFIG.fruits[fruit.type];
+        s.fruits = s.fruits.filter(f => f !== fruit);
+        s.grow += cfg.growth;
+        s.eatCount += 1;
+        s.combo += 1;
+        s.maxCombo = Math.max(s.maxCombo, s.combo);
+        s.comboDeadline = now + CONFIG.comboWindow;
+
+        if (fruit.type === 'combo') s.comboDeadline += 1200;
+        if (fruit.type === 'energy') {
+          s.skillCd.q = Math.max(0, s.skillCd.q - 2500);
+          s.skillCd.e = Math.max(0, s.skillCd.e - 2500);
+        }
+
+        const comboBonus = Math.floor(s.combo / 4) * 0.35;
+        const doubleBonus = s.effects.double > now ? 1 : 0;
+        const frenzyBonus = s.effects.frenzy > now ? 0.6 : 0;
+        s.mult = 1 + comboBonus + doubleBonus + frenzyBonus;
+
+        const gain = Math.round(cfg.score * s.mult);
+        s.score += gain;
+        s.runCoins += cfg.coins;
+        s.totalCoinsEarned += cfg.coins;
+        this.profile.totalCoins += cfg.coins;
+
+        this.float(`+${gain}`, fruit.x, fruit.y, '#f8fafc');
+        this.spawnParticles(fruit.x, fruit.y, cfg.color, fruit.type === 'rare' ? 24 : 14);
+
+        if (fruit.type === 'rare' || fruit.type === 'coin') Sound.rare();
+        else Sound.eat();
+
+        if (s.combo % 5 === 0) {
+          UI.message.textContent = `🔥 ${s.combo} 连击！倍率 ${s.mult.toFixed(1)}x`;
+          Sound.combo();
+        }
+
+        if (s.score > this.profile.bestScore) {
+          this.profile.bestScore = s.score;
+          UI.message.textContent = '🏆 破纪录中！继续冲分！';
+        }
+
+        this.persist();
+      },
+
+      pickItem(head, now) {
+        const s = this.state;
+        const item = s.items.find(i => i.x === head.x && i.y === head.y);
+        if (!item) return;
+        s.items = s.items.filter(i => i !== item);
+        const cfg = CONFIG.items[item.type];
+        s.itemsPicked += 1;
+        Sound.item();
+
+        if (item.type === 'shrink') {
+          s.body = s.body.slice(0, Math.max(4, Math.floor(s.body.length * 0.72)));
+        } else {
+          s.effects[item.type] = now + cfg.duration;
+        }
+
+        this.float(`${cfg.label} 已激活`, head.x, head.y, cfg.color);
+        UI.message.textContent = `✨ ${cfg.label} 生效`;
+        this.spawnParticles(head.x, head.y, cfg.color, 18);
+      },
+
+      resolveBotConflicts(now) {
+        const s = this.state;
+        const pHead = s.body[0];
+
+        s.bots.forEach(bot => {
+          if (!bot.alive) return;
+          const bHead = bot.body[0];
+
+          if (bHead.x === pHead.x && bHead.y === pHead.y) {
+            if (s.body.length >= bot.body.length) {
+              bot.alive = false;
+              s.aiKills += 1;
+              s.runCoins += 18;
+              this.profile.totalCoins += 18;
+              this.float(`击败 ${bot.name}`, pHead.x, pHead.y, '#fbbf24');
+              this.spawnParticles(pHead.x, pHead.y, '#fbbf24', 18);
+            } else if (s.effects.shield > now) {
+              s.effects.shield = 0;
+              s.shieldSaved = true;
+              this.float('护盾抵挡了 AI 撞击', pHead.x, pHead.y, '#67e8f9');
+            } else {
+              s.deathCause = `被 ${bot.name} 正面击败`;
+              this.endRun();
+            }
+          }
+
+          const hitsBotBody = bot.body.slice(1).some(p => p.x === pHead.x && p.y === pHead.y);
+          if (hitsBotBody) {
+            if (s.effects.phase > now || s.effects.shield > now) {
+              if (s.effects.shield > now) s.effects.shield = 0;
+              this.float('穿越/护盾化解碰撞', pHead.x, pHead.y, '#a78bfa');
+            } else {
+              s.deathCause = `撞上 ${bot.name} 躯体`;
+              this.endRun();
+            }
+          }
+        });
+
+        // AI 互撞
+        s.bots.forEach((bot, i) => {
+          if (!bot.alive) return;
+          s.bots.forEach((other, j) => {
+            if (i === j || !other.alive) return;
+            const bh = bot.body[0];
+            if (other.body.some((p, idx) => idx > 0 && p.x === bh.x && p.y === bh.y)) {
+              bot.alive = false;
+            }
+          });
+        });
+      },
+
+      updateStage(modeCfg) {
+        const s = this.state;
+        const prev = s.stage;
+        if (s.score < 120) s.stage = 1;
+        else if (s.score < 300) s.stage = 2;
+        else s.stage = 3;
+        if (prev !== s.stage) {
+          this.spawnParticles(s.body[0].x, s.body[0].y, '#22d3ee', 26);
+          UI.message.textContent = s.stage === 2 ? '中期来临：障碍密度和收益上升。' : '后期来临：速度与风险同时拉满！';
+          if (s.stage === 3) {
+            const elite = s.bots.find(b => b.isElite && b.alive);
+            if (elite) {
+              UI.message.textContent = `⚠️ 精英龙蛇 ${elite.name} 进入暴走争夺！`;
+              Sound.warning();
+            }
+          }
+        }
+        s.tick = Math.max(62, CONFIG.baseTick - s.score * modeCfg.stageBoost);
+      },
+
+      checkTasksAndAchievements() {
+        const s = this.state;
+        this.tasks.forEach(t => {
+          if (!t.done && t.check(s)) {
+            t.done = true;
+            this.profile.totalCoins += t.reward;
+            this.float(`任务 +${t.reward}币`, s.body[0].x, s.body[0].y, '#4ade80');
+            UI.message.textContent = `✅ 任务完成：${t.text}`;
+            Sound.ach();
+          }
+        });
+
+        CONFIG.achievements.forEach(a => {
+          if (this.profile.achievements.includes(a.id)) return;
+          if (a.check(s)) {
+            this.profile.achievements.push(a.id);
+            this.profile.totalCoins += 90;
+            this.float(`成就：${a.title}`, s.body[0].x, s.body[0].y, '#fbbf24');
+            UI.message.textContent = `🏅 解锁成就：${a.title}`;
+            Sound.ach();
+          }
+        });
+      },
+
+      spawnParticles(gx, gy, color, count) {
+        for (let i = 0; i < count; i += 1) {
+          const a = (Math.PI * 2 * i) / count;
+          this.particles.push({
+            x: gx * CONFIG.cell + CONFIG.cell / 2,
+            y: gy * CONFIG.cell + CONFIG.cell / 2,
+            vx: Math.cos(a) * (1 + Math.random() * 1.8),
+            vy: Math.sin(a) * (1 + Math.random() * 1.8),
+            life: 22 + Math.random() * 16,
+            color
+          });
+        }
+      },
+
+      float(text, gx, gy, color) {
+        this.floatTexts.push({ text, x: gx * CONFIG.cell + CONFIG.cell / 2, y: gy * CONFIG.cell + CONFIG.cell / 2, life: 46, color });
+      },
+
+      persist() {
+        this.profile.currentSkin = UI.skin.value;
+        this.profile.currentTheme = UI.theme.value;
+        this.profile.musicOn = Sound.musicOn;
+        Store.save(this.profile);
+      },
+
+      endRun() {
+        const s = this.state;
+        s.over = true;
+        s.running = false;
+        Sound.fail();
+        this.spawnParticles(s.body[0].x, s.body[0].y, '#f43f5e', 38);
+
+        const doneTasks = this.tasks.filter(t => t.done);
+        const rank = this.getRank();
+        UI.resultStats.textContent = `分数 ${s.score}｜最高 ${this.profile.bestScore}｜时长 ${s.duration}s｜最高连击 ${s.maxCombo}｜龙币 +${s.runCoins}｜击败AI ${s.aiKills}｜排名 #${rank}｜死因：${s.deathCause}${s.score >= this.profile.bestScore ? '｜破纪录!' : ''}`;
+        UI.resultTasks.textContent = doneTasks.length ? `任务：${doneTasks.map(t => `${t.text}(+${t.reward})`).join('；')}` : '任务未完成，可再试一局。';
+        UI.resultOverlay.classList.add('show');
+        UI.stateBadge.textContent = '已结束';
+        this.persist();
+      },
+
+      getRank() {
+        const scores = [this.state.score, ...this.state.bots.filter(b => b.alive).map(b => b.score)];
+        const sorted = [...scores].sort((a, b) => b - a);
+        return sorted.indexOf(this.state.score) + 1;
+      },
+
+      syncHud() {
+        const s = this.state;
+        UI.score.textContent = s.score;
+        UI.best.textContent = this.profile.bestScore;
+        UI.combo.textContent = `x${s.combo}`;
+        UI.mult.textContent = `x${s.mult.toFixed(1)}`;
+        UI.coins.textContent = s.runCoins;
+        UI.totalCoins.textContent = this.profile.totalCoins;
+        UI.stage.textContent = s.stage === 1 ? '前期' : s.stage === 2 ? '中期' : '后期';
+
+        const now = performance.now();
+        const active = [];
+        Object.entries(s.effects).forEach(([k, v]) => {
+          if (v > now) active.push(`${k}:${Math.ceil((v - now) / 1000)}s`);
+        });
+        const q = Math.max(0, Math.ceil((s.skillCd.q - now) / 1000));
+        const e = Math.max(0, Math.ceil((s.skillCd.e - now) / 1000));
+        const r = Math.max(0, Math.ceil((s.skillCd.r - now) / 1000));
+        UI.skillCd.textContent = `${active.slice(0,2).join(' ') || '无'} | Q:${q}s E:${e}s R:${r}s #${this.getRank()}`;
+      },
+
+      drawBackground(now) {
+        const theme = CONFIG.themes[UI.theme.value];
+        const grad = CTX.createLinearGradient(0, 0, 0, UI.board.height);
+        grad.addColorStop(0, theme.bgA);
+        grad.addColorStop(1, theme.bgB);
+        CTX.fillStyle = grad;
+        CTX.fillRect(0, 0, UI.board.width, UI.board.height);
+
+        CTX.strokeStyle = theme.grid;
+        CTX.lineWidth = 1;
+        for (let i = 1; i < CONFIG.grid; i += 1) {
+          const p = i * CONFIG.cell;
+          CTX.beginPath(); CTX.moveTo(p, 0); CTX.lineTo(p, UI.board.height); CTX.stroke();
+          CTX.beginPath(); CTX.moveTo(0, p); CTX.lineTo(UI.board.width, p); CTX.stroke();
+        }
+
+        CTX.fillStyle = `rgba(125,211,252,${0.045 + Math.sin(now / 650) * 0.025})`;
+        for (let i = 0; i < 34; i += 1) {
+          const x = (i * 163 + now * 0.022) % UI.board.width;
+          const y = (i * 89 + now * 0.016) % UI.board.height;
+          CTX.fillRect(x, y, 1.6, 1.6);
+        }
+        CTX.fillStyle = 'rgba(148,163,184,0.06)';
+        for (let y = 0; y < UI.board.height; y += 6) CTX.fillRect(0, y, UI.board.width, 1);
+
+        // 动态龙域纹路与能量雾
+        CTX.save();
+        CTX.globalAlpha = 0.12 + this.state.stage * 0.03;
+        CTX.strokeStyle = theme.grid;
+        CTX.lineWidth = 2;
+        CTX.beginPath();
+        CTX.arc(UI.board.width * 0.2, UI.board.height * 0.2, 44 + Math.sin(now / 500) * 6, 0, Math.PI * 2);
+        CTX.arc(UI.board.width * 0.8, UI.board.height * 0.76, 52 + Math.cos(now / 650) * 6, 0, Math.PI * 2);
+        CTX.stroke();
+        CTX.restore();
+
+        // 危险边缘预警
+        if (this.state.combo === 0 && this.state.stage >= 2) {
+          const alert = 0.12 + Math.sin(now / 120) * 0.06;
+          CTX.strokeStyle = `rgba(248,113,113,${Math.max(0.05, alert)})`;
+          CTX.lineWidth = 8;
+          CTX.strokeRect(0, 0, UI.board.width, UI.board.height);
+        }
+      },
+
+      drawObstacles() {
+        this.state.obstacles.forEach(o => {
+          const px = o.x * CONFIG.cell;
+          const py = o.y * CONFIG.cell;
+          const w = o.w * CONFIG.cell;
+          const h = o.h * CONFIG.cell;
+          let color = '#64748b';
+          if (o.type === 'crystal') color = '#38bdf8';
+          if (o.type === 'pillar') color = '#f59e0b';
+          if (o.type === 'trap') color = '#ef4444';
+
+          CTX.save();
+          CTX.shadowColor = color;
+          CTX.shadowBlur = 8;
+          CTX.fillStyle = color;
+          if (o.type === 'rock') {
+            CTX.beginPath();
+            CTX.roundRect(px + 2, py + 2, w - 4, h - 4, 7);
+            CTX.fill();
+          } else if (o.type === 'crystal') {
+            CTX.beginPath();
+            CTX.moveTo(px + w / 2, py + 2); CTX.lineTo(px + w - 2, py + h / 2); CTX.lineTo(px + w / 2, py + h - 2); CTX.lineTo(px + 2, py + h / 2); CTX.closePath();
+            CTX.fill();
+          } else if (o.type === 'trap') {
+            CTX.fillRect(px + 2, py + 2, w - 4, h - 4);
+            CTX.fillStyle = 'rgba(0,0,0,.35)';
+            for (let x = px + 4; x < px + w - 4; x += 6) CTX.fillRect(x, py + 4, 2, h - 8);
+          } else {
+            CTX.beginPath();
+            CTX.roundRect(px + 2, py + 2, w - 4, h - 4, 4);
+            CTX.fill();
+          }
+          CTX.restore();
+        });
+      },
+
+      drawFruits(now) {
+        this.state.fruits.forEach(f => {
+          const cfg = CONFIG.fruits[f.type];
+          const px = f.x * CONFIG.cell + CONFIG.cell / 2;
+          const py = f.y * CONFIG.cell + CONFIG.cell / 2;
+          const pulse = 0.75 + Math.sin((now + f.x * 45) / 120) * 0.25;
+          CTX.save();
+          CTX.shadowColor = cfg.color;
+          CTX.shadowBlur = f.type === 'rare' ? 22 : 14;
+          CTX.fillStyle = cfg.color;
+          CTX.beginPath();
+          CTX.arc(px, py, CONFIG.cell * 0.28 * pulse + (f.type === 'rare' ? 1.6 : 0), 0, Math.PI * 2);
+          CTX.fill();
+          CTX.restore();
+        });
+      },
+
+      drawItems(now) {
+        this.state.items.forEach(i => {
+          const cfg = CONFIG.items[i.type];
+          const px = i.x * CONFIG.cell;
+          const py = i.y * CONFIG.cell;
+          CTX.save();
+          CTX.shadowColor = cfg.color;
+          CTX.shadowBlur = 16;
+          CTX.strokeStyle = cfg.color;
+          CTX.lineWidth = 2;
+          CTX.beginPath();
+          CTX.roundRect(px + 5, py + 5, CONFIG.cell - 10, CONFIG.cell - 10, 8);
+          CTX.stroke();
+          CTX.beginPath();
+          CTX.arc(px + CONFIG.cell / 2, py + CONFIG.cell / 2, 4 + Math.sin(now / 140) * 1.2, 0, Math.PI * 2);
+          CTX.fillStyle = cfg.color;
+          CTX.fill();
+          CTX.restore();
+        });
+      },
+
+      // 连续龙体渲染：用采样曲线 + 逐段收细，弱化格子拼接感。
+      drawDragon(now) {
+        const s = this.state;
+        const skin = CONFIG.skins[UI.skin.value];
+        const points = s.body.map((p, idx) => ({
+          x: p.x * CONFIG.cell + CONFIG.cell / 2 + Math.sin(now / 180 + idx * 0.5) * 1.5,
+          y: p.y * CONFIG.cell + CONFIG.cell / 2 + Math.cos(now / 200 + idx * 0.46) * 1.2
+        }));
+
+        const trail = [];
+        for (let i = 0; i < points.length - 1; i += 1) {
+          const a = points[i];
+          const b = points[i + 1];
+          const step = 5;
+          for (let t = 0; t < step; t += 1) {
+            const k = t / step;
+            trail.push({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, idx: i + k });
+          }
+        }
+
+        CTX.save();
+        for (let i = trail.length - 1; i >= 0; i -= 1) {
+          const p = trail[i];
+          const ratio = i / Math.max(1, trail.length - 1);
+          const w = 11 - ratio * 7.5; // 龙头粗，龙尾细
+          const grad = CTX.createRadialGradient(p.x - 2, p.y - 2, 1, p.x, p.y, w);
+          grad.addColorStop(0, skin.core);
+          grad.addColorStop(1, ratio > 0.6 ? skin.a : skin.b);
+          CTX.fillStyle = grad;
+          CTX.globalAlpha = 0.95 - ratio * 0.35;
+          CTX.beginPath();
+          CTX.arc(p.x, p.y, Math.max(1.6, w), 0, Math.PI * 2);
+          CTX.fill();
+        }
+        CTX.globalAlpha = 1;
+
+        // 龙头
+        const head = points[0];
+        const neck = points[1] || { x: head.x - 1, y: head.y };
+        const dx = head.x - neck.x;
+        const dy = head.y - neck.y;
+        const ang = Math.atan2(dy, dx);
+
+        CTX.translate(head.x, head.y);
+        CTX.rotate(ang);
+        CTX.shadowColor = skin.glow;
+        CTX.shadowBlur = 20;
+        CTX.fillStyle = skin.a;
+        CTX.beginPath();
+        CTX.ellipse(0, 0, 13, 10, 0, 0, Math.PI * 2);
+        CTX.fill();
+
+        CTX.fillStyle = skin.core;
+        CTX.beginPath();
+        CTX.moveTo(-6, -7); CTX.lineTo(-10, -15); CTX.lineTo(-2, -10); CTX.fill();
+        CTX.beginPath();
+        CTX.moveTo(6, -7); CTX.lineTo(10, -15); CTX.lineTo(2, -10); CTX.fill();
+
+        CTX.fillStyle = skin.eye;
+        CTX.beginPath();
+        CTX.arc(4, -3, 2, 0, Math.PI * 2);
+        CTX.arc(-4, -3, 2, 0, Math.PI * 2);
+        CTX.fill();
+
+        CTX.strokeStyle = skin.core;
+        CTX.lineWidth = 1.2;
+        const whisk = Math.sin(now / 120) * 1.5;
+        CTX.beginPath();
+        CTX.moveTo(-7, 2); CTX.quadraticCurveTo(-12, whisk, -17, 3);
+        CTX.moveTo(7, 2); CTX.quadraticCurveTo(12, -whisk, 17, 3);
+        CTX.stroke();
+        CTX.rotate(-ang);
+        CTX.translate(-head.x, -head.y);
+
+        // 龙尾拖尾
+        const tail = trail[trail.length - 1] || head;
+        CTX.shadowColor = skin.glow;
+        CTX.shadowBlur = 10;
+        CTX.fillStyle = skin.core;
+        CTX.globalAlpha = 0.55;
+        CTX.beginPath();
+        CTX.arc(tail.x, tail.y, 4 + Math.sin(now / 100) * 1.2, 0, Math.PI * 2);
+        CTX.fill();
+        CTX.globalAlpha = 1;
+        CTX.restore();
+      },
+
+      drawBots(now) {
+        this.state.bots.forEach(bot => {
+          if (!bot.alive) return;
+          const points = bot.body.map((p, i) => ({
+            x: p.x * CONFIG.cell + CONFIG.cell / 2 + Math.sin(now / 220 + i * 0.4) * 0.8,
+            y: p.y * CONFIG.cell + CONFIG.cell / 2 + Math.cos(now / 210 + i * 0.4) * 0.8
+          }));
+          points.forEach((p, i) => {
+            const r = 8 - (i / Math.max(1, points.length - 1)) * 4.6;
+            CTX.fillStyle = bot.color;
+            CTX.globalAlpha = 0.88 - i * 0.03;
+            CTX.beginPath(); CTX.arc(p.x, p.y, Math.max(2, r), 0, Math.PI * 2); CTX.fill();
+          });
+          CTX.globalAlpha = 1;
+          CTX.fillStyle = '#e2e8f0';
+          CTX.font = bot.isElite ? '700 12px sans-serif' : '600 10px sans-serif';
+          CTX.textAlign = 'center';
+          CTX.fillText(`${bot.isElite ? '👑' : ''}${bot.name}`, points[0].x, points[0].y - 12);
+        });
+      },
+
+      drawSkillFx(now) {
+        const s = this.state;
+        s.skillFx = s.skillFx.filter(fx => fx.until > now);
+        s.skillFx.forEach(fx => {
+          const head = s.body[0];
+          const hx = head.x * CONFIG.cell + CONFIG.cell / 2;
+          const hy = head.y * CONFIG.cell + CONFIG.cell / 2;
+          if (fx.type === 'dash') {
+            CTX.strokeStyle = 'rgba(249,115,22,0.5)';
+            CTX.lineWidth = 2;
+            CTX.beginPath();
+            CTX.arc(hx, hy, 24 + Math.sin(now / 40) * 5, 0, Math.PI * 2);
+            CTX.stroke();
+          } else if (fx.type === 'domain') {
+            CTX.strokeStyle = 'rgba(34,211,238,0.45)';
+            CTX.lineWidth = 3;
+            CTX.beginPath();
+            CTX.arc(hx, hy, 70 + Math.sin(now / 80) * 6, 0, Math.PI * 2);
+            CTX.stroke();
+          } else if (fx.type === 'thunder') {
+            CTX.strokeStyle = 'rgba(196,181,253,0.75)';
+            CTX.lineWidth = 2;
+            this.state.bots.filter(b => b.alive).forEach(bot => {
+              const bx = bot.body[0].x * CONFIG.cell + CONFIG.cell / 2;
+              const by = bot.body[0].y * CONFIG.cell + CONFIG.cell / 2;
+              const dist = Math.abs(bot.body[0].x - head.x) + Math.abs(bot.body[0].y - head.y);
+              if (dist <= 5) {
+                CTX.beginPath();
+                CTX.moveTo(hx, hy);
+                CTX.lineTo((hx + bx) / 2 + Math.sin(now / 40) * 6, (hy + by) / 2 + Math.cos(now / 50) * 6);
+                CTX.lineTo(bx, by);
+                CTX.stroke();
+              }
+            });
+          }
+        });
+      },
+
+      drawParticlesAndFloats() {
+        this.particles = this.particles.filter(p => p.life > 0);
+        this.particles.forEach(p => {
+          p.x += p.vx; p.y += p.vy; p.vx *= 0.96; p.vy *= 0.96; p.life -= 1;
+          CTX.fillStyle = p.color;
+          CTX.globalAlpha = Math.max(0, p.life / 34);
+          CTX.beginPath(); CTX.arc(p.x, p.y, 2, 0, Math.PI * 2); CTX.fill();
+          CTX.globalAlpha = 1;
+        });
+
+        this.floatTexts = this.floatTexts.filter(t => t.life > 0);
+        this.floatTexts.forEach(t => {
+          t.y -= 0.6; t.life -= 1;
+          CTX.globalAlpha = Math.max(0, t.life / 46);
+          CTX.fillStyle = t.color;
+          CTX.font = '700 15px "PingFang SC", sans-serif';
+          CTX.textAlign = 'center';
+          CTX.fillText(t.text, t.x, t.y);
+          CTX.globalAlpha = 1;
+        });
+      },
+
+      drawPauseOverlay() {
+        if (!this.state.paused) return;
+        CTX.fillStyle = 'rgba(2,6,23,.58)';
+        CTX.fillRect(0, 0, UI.board.width, UI.board.height);
+        CTX.fillStyle = '#e2e8f0';
+        CTX.font = '700 36px "PingFang SC", sans-serif';
+        CTX.textAlign = 'center';
+        CTX.fillText('已暂停', UI.board.width / 2, UI.board.height / 2);
+      },
+
+      render(now) {
+        this.drawBackground(now);
+        this.drawObstacles();
+        this.drawFruits(now);
+        this.drawItems(now);
+        this.drawBots(now);
+        this.drawDragon(now);
+        this.drawSkillFx(now);
+        this.drawParticlesAndFloats();
+        this.drawPauseOverlay();
+      },
+
+      loop() {
+        const now = performance.now();
+        this.tick(now);
+        this.syncHud();
+        this.render(now);
+        requestAnimationFrame(() => this.loop());
+      },
+
+      togglePause() {
+        if (this.state.over) return;
+        this.state.paused = !this.state.paused;
+        UI.pause.textContent = this.state.paused ? '继续' : '暂停';
+        UI.stateBadge.textContent = this.state.paused ? '暂停中' : '进行中';
+      },
+
+      bind() {
+        const map = {
+          arrowup: { x: 0, y: -1 }, w: { x: 0, y: -1 },
+          arrowdown: { x: 0, y: 1 }, s: { x: 0, y: 1 },
+          arrowleft: { x: -1, y: 0 }, a: { x: -1, y: 0 },
+          arrowright: { x: 1, y: 0 }, d: { x: 1, y: 0 }
+        };
+
+        document.addEventListener('keydown', e => {
+          Sound.ensure();
+          const k = e.key.toLowerCase();
+          if (k === ' ') { e.preventDefault(); this.togglePause(); return; }
+          if (k === 'shift') { this.state.boost = true; return; }
+          if (k === 'q') { this.triggerSkillQ(); return; }
+          if (k === 'e') { this.triggerSkillE(); return; }
+          if (k === 'r') { this.triggerSkillR(); return; }
+          if (!map[k]) return;
+          e.preventDefault();
+          this.setDir(map[k]);
+        });
+
+        document.addEventListener('keyup', e => {
+          if (e.key.toLowerCase() === 'shift') this.state.boost = false;
+        });
+
+        document.querySelectorAll('[data-dir]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const m = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+            this.setDir(m[btn.dataset.dir]);
+          });
+        });
+
+        UI.startGuide.addEventListener('click', () => { Sound.click(); UI.guideOverlay.classList.remove('show'); Sound.ensure(); });
+        UI.restart.addEventListener('click', () => { Sound.click(); this.newRun(); UI.guideOverlay.classList.remove('show'); });
+        UI.againBtn.addEventListener('click', () => { Sound.click(); this.newRun(); UI.resultOverlay.classList.remove('show'); });
+        UI.closeResult.addEventListener('click', () => UI.resultOverlay.classList.remove('show'));
+        UI.pause.addEventListener('click', () => { Sound.click(); this.togglePause(); });
+
+        UI.music.addEventListener('click', () => {
+          Sound.click();
+          Sound.musicOn = !Sound.musicOn;
+          UI.music.textContent = Sound.musicOn ? '音乐：开' : '音乐：关';
+          if (Sound.musicOn) { Sound.ensure(); Sound.startMusic(); } else Sound.stopMusic();
+          this.persist();
+        });
+
+        UI.mode.addEventListener('change', () => { Sound.click(); this.newRun(); });
+        UI.theme.addEventListener('change', () => { Sound.click(); this.persist(); });
+        UI.skin.addEventListener('change', () => this.updateShopBtn());
+
+        UI.buySkin.addEventListener('click', () => {
+          Sound.click();
+          const key = UI.skin.value;
+          const skin = CONFIG.skins[key];
+          if (!this.profile.unlockedSkins.includes(key)) {
+            if (this.profile.totalCoins < skin.cost) {
+              UI.message.textContent = `龙币不足：需要 ${skin.cost}，当前 ${this.profile.totalCoins}`;
+              return;
+            }
+            this.profile.totalCoins -= skin.cost;
+            this.profile.unlockedSkins.push(key);
+            UI.message.textContent = `已解锁 ${skin.name}`;
+            Sound.ach();
+          }
+          this.profile.currentSkin = key;
+          this.fillSelectors();
+          this.persist();
+        });
       }
+    };
 
-      snake.unshift(head);
-
-      if (head.x === food.x && head.y === food.y) {
-        score += 10;
-        scoreEl.textContent = score;
-        food = randomFood();
-      } else {
-        snake.pop();
-      }
-
-      draw();
-    }
-
-    function drawGrid() {
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
-      ctx.lineWidth = 1;
-      for (let i = 1; i < tileCount; i += 1) {
-        const p = i * gridSize;
-        ctx.beginPath();
-        ctx.moveTo(p, 0);
-        ctx.lineTo(p, canvas.height);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(0, p);
-        ctx.lineTo(canvas.width, p);
-        ctx.stroke();
-      }
-    }
-
-    function drawCell(x, y, color, radius = 4) {
-      const px = x * gridSize;
-      const py = y * gridSize;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.roundRect(px + 1, py + 1, gridSize - 2, gridSize - 2, radius);
-      ctx.fill();
-    }
-
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawGrid();
-
-      drawCell(food.x, food.y, '#f43f5e', 6);
-
-      snake.forEach((part, index) => {
-        const color = index === 0 ? '#4ade80' : '#22c55e';
-        drawCell(part.x, part.y, color, 5);
-      });
-
-      if (gameOver) {
-        ctx.fillStyle = 'rgba(2, 6, 23, 0.65)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#f8fafc';
-        ctx.textAlign = 'center';
-        ctx.font = '700 36px "PingFang SC", sans-serif';
-        ctx.fillText('游戏结束', canvas.width / 2, canvas.height / 2);
-      }
-    }
-
-    document.addEventListener('keydown', onKeydown);
-    restartBtn.addEventListener('click', resetGame);
-
-    resetGame();
+    Game.init();
   </script>
 </body>
 </html>
